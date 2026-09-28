@@ -46,7 +46,7 @@ static void config_load(Config *cfg) {
 	while (fgets(line, sizeof(line), f)) {
 		line[strcspn(line, "\r\n")] = '\0';
 		if (strncmp(line, "ip=", 3) == 0) {
-			snprintf(cfg->ip, sizeof(cfg->ip), "%s", line + 3);
+			snprintf(cfg->ip, sizeof(cfg->ip), "%.15s", line + 3);
 		} else if (strncmp(line, "port=", 5) == 0) {
 			int port = atoi(line + 5);
 			if (port > 0 && port < 65536) cfg->port = port;

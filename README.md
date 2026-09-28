@@ -29,6 +29,11 @@
    make
    ```
    `robot-controller.3dsx` ができます。
+   devkitPro を入れずに Docker でビルドする場合:
+   ```sh
+   cd 3ds
+   docker run --rm -v "$PWD":/src -w /src devkitpro/devkitarm make
+   ```
 3. SD カードの `/3ds/` にコピーし、Homebrew Launcher から起動
 
 ### 操作

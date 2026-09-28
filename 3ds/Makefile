@@ -91,6 +91,8 @@ else
 	export APP_ICON := $(TOPDIR)/$(ICON)
 endif
 
+export _3DSXDEPS	:=	$(if $(NO_SMDH),,$(OUTPUT).smdh)
+
 ifeq ($(strip $(NO_SMDH)),)
 	export _3DSXFLAGS += --smdh=$(CURDIR)/$(TARGET).smdh
 endif
