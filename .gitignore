@@ -1,0 +1,6 @@
+3ds/build/
+3ds/*.3dsx
+3ds/*.elf
+3ds/*.smdh
+__pycache__/
+*.pyc
