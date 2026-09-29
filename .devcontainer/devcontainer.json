@@ -1,0 +1,20 @@
+{
+	// VS Code の "Reopen in Container" で devkitPro 入りの環境を開く。
+	// イメージは 3ds/build.sh と .github/workflows/build.yml と揃えること。
+	"name": "3DS Robot Controller (devkitPro)",
+	"image": "devkitpro/devkitarm@sha256:116afba8df8453961de2936ffab20dd441edf4d682856c1ec8b0e53d7ed0bbf5",
+	"customizations": {
+		"vscode": {
+			"extensions": ["ms-vscode.cpptools", "ms-vscode.makefile-tools", "ms-python.python"],
+			"settings": {
+				"C_Cpp.default.includePath": [
+					"${workspaceFolder}/3ds/source",
+					"/opt/devkitpro/libctru/include",
+					"/opt/devkitpro/devkitARM/arm-none-eabi/include"
+				],
+				"C_Cpp.default.defines": ["__3DS__"],
+				"C_Cpp.default.compilerPath": "/opt/devkitpro/devkitARM/bin/arm-none-eabi-gcc"
+			}
+		}
+	}
+}

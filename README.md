@@ -19,22 +19,17 @@
 
 前提: 3DS に homebrew 環境 (Luma3DS + Homebrew Launcher) が導入済みであること。
 
-1. [devkitPro](https://devkitpro.org/wiki/Getting_Started) をインストールし、`3ds-dev` を入れる
-   ```sh
-   sudo dkp-pacman -S 3ds-dev
-   ```
-2. ビルド
-   ```sh
-   cd 3ds
-   make
-   ```
-   `robot-controller.3dsx` ができます。
-   devkitPro を入れずに Docker でビルドする場合:
-   ```sh
-   cd 3ds
-   docker run --rm -v "$PWD":/src -w /src devkitpro/devkitarm make
-   ```
-3. SD カードの `/3ds/` にコピーし、Homebrew Launcher から起動
+1. ビルド (次のどれか)
+   - **`./3ds/build.sh`** — devkitPro がインストール済みならそれを、なければ Docker で devkitPro 入りのイメージを自動で取得してビルドします
+   - **VS Code** — 「Reopen in Container」で開くと devkitPro 入りの環境になるので、ターミナルで `make -C 3ds`
+   - **GitHub Actions** — push すると自動でビルドされ、Actions の Artifacts から `robot-controller.3dsx` をダウンロードできます
+   - 自分で [devkitPro](https://devkitpro.org/wiki/Getting_Started) を入れる場合は `sudo dkp-pacman -S 3ds-dev` のあと `make -C 3ds`
+
+   `3ds/robot-controller.3dsx` ができます。
+2. SD カードの `/3ds/` にコピーし、Homebrew Launcher から起動
+
+> devkitPro のバージョンは `3ds/build.sh`・`.devcontainer/devcontainer.json`・`.github/workflows/build.yml` の
+> `devkitpro/devkitarm@sha256:...` で固定しています。更新するときは 3 か所とも同じ値に書き換えてください。
 
 ### 操作
 
