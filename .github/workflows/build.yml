@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  3ds:
+  build-3ds:
     runs-on: ubuntu-latest
     # イメージは 3ds/build.sh と .devcontainer/devcontainer.json と揃えること
     container: devkitpro/devkitarm@sha256:116afba8df8453961de2936ffab20dd441edf4d682856c1ec8b0e53d7ed0bbf5
@@ -18,7 +18,7 @@ jobs:
           name: robot-controller-3dsx
           path: 3ds/robot-controller.3dsx
 
-  receiver:
+  test-receiver:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
