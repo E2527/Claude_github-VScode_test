@@ -1,0 +1,25 @@
+{
+	// 「実行とデバッグ」(Ctrl+Shift+D) から選んで F5 で起動
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "受信プログラム (3DS から受け取る)",
+			"type": "debugpy",
+			"request": "launch",
+			"module": "robot3ds",
+			"cwd": "${workspaceFolder}/receiver",
+			"env": { "PYTHONPATH": "${workspaceFolder}/receiver" },
+			"console": "integratedTerminal"
+		},
+		{
+			"name": "疑似送信 (3DS なしでテスト)",
+			"type": "debugpy",
+			"request": "launch",
+			"module": "robot3ds.fake_sender",
+			"args": ["127.0.0.1"],
+			"cwd": "${workspaceFolder}/receiver",
+			"env": { "PYTHONPATH": "${workspaceFolder}/receiver" },
+			"console": "integratedTerminal"
+		}
+	]
+}
