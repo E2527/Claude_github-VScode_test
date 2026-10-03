@@ -17,6 +17,7 @@
   --cool: #6FA8FF;
   --win: #4CD39A;
   --lose: #FF6B7A;
+  --fire: #FF5A36;
   --grid: rgba(111,168,255,.05);
   --font-display: "Dela Gothic One", "Hiragino Sans", "Yu Gothic", sans-serif;
   --font-body: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif;
@@ -27,14 +28,14 @@
   :root:not([data-theme="dark"]) {
     --bg: #EEF0F6; --surface: #FFFFFF; --raise: #F5F6FB; --line: #DDE0EC;
     --fg: #121530; --muted: #5C627F; --accent: #C66A00; --accent-ink: #FFFFFF;
-    --accent-soft: rgba(198,106,0,.10); --cool: #2E63C9; --win: #12865A; --lose: #CC2F45;
+    --accent-soft: rgba(198,106,0,.10); --cool: #2E63C9; --win: #12865A; --lose: #CC2F45; --fire: #D9361A;
     --grid: rgba(46,99,201,.05); color-scheme: light;
   }
 }
 :root[data-theme="light"] {
   --bg: #EEF0F6; --surface: #FFFFFF; --raise: #F5F6FB; --line: #DDE0EC;
   --fg: #121530; --muted: #5C627F; --accent: #C66A00; --accent-ink: #FFFFFF;
-  --accent-soft: rgba(198,106,0,.10); --cool: #2E63C9; --win: #12865A; --lose: #CC2F45;
+  --accent-soft: rgba(198,106,0,.10); --cool: #2E63C9; --win: #12865A; --lose: #CC2F45; --fire: #D9361A;
   --grid: rgba(46,99,201,.05); color-scheme: light;
 }
 
@@ -58,6 +59,7 @@ button { cursor: pointer; }
 .app {
   display: grid;
   grid-template-columns: 232px minmax(0, 600px) 320px;
+  grid-template-rows: minmax(0, 1fr);
   justify-content: center;
   height: 100%;
 }
@@ -174,6 +176,19 @@ button { cursor: pointer; }
 .judge .bar i { display: block; height: 100%; }
 .judge p { margin: 12px 14px 14px; font-size: 14px; }
 .judge .verdict { font-family: var(--font-display); font-size: 20px; padding: 0 14px; }
+.fire { border-top: 1px solid var(--line); padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 14px; }
+.fire h4 { margin: 0; font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; color: var(--muted); font-weight: 600; display: flex; justify-content: space-between; }
+.fire h4 b { color: var(--fire); font-weight: 600; }
+.fire-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 12px; align-items: end; }
+.fire-row .who { font-size: 12px; color: var(--muted); }
+.fire-row .rank { font-family: var(--font-display); font-size: 22px; line-height: 1.1; color: var(--fire); text-align: right; white-space: nowrap; }
+.fire-row .rank small { font-family: var(--font-mono); font-size: 12px; color: var(--muted); margin-left: 6px; font-variant-numeric: tabular-nums; }
+.flames { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+.flames i { height: 8px; border-radius: 2px; background: var(--line); }
+.flames i.on { background: linear-gradient(90deg, var(--accent), var(--fire)); }
+.punch { grid-column: 1 / -1; margin: 4px 0 0; padding: 8px 12px; border-left: 3px solid var(--fire); background: var(--raise); border-radius: 0 10px 10px 0; font-size: 14px; overflow-wrap: anywhere; }
+.punch::before { content: "最強パンチライン"; display: block; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; color: var(--muted); margin-bottom: 2px; }
+.fire-row .note { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
 
 .composer {
   border-top: 1px solid var(--line); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
@@ -516,7 +531,31 @@ button { cursor: pointer; }
     box.append(el("div", null)); box.lastChild.style.height = "12px";
     box.append(verdict);
     box.append(el("p", null, j.comment || ""));
+    if (j.fire) box.append(fireEl(j.fire, per));
     return box;
+  }
+
+  const FIRE_RANKS = [[80, "焦土"], [60, "大炎上"], [40, "炎上"], [20, "ボヤ"], [0, "線香花火"]];
+  const fireRank = (n) => FIRE_RANKS.find(([min]) => n >= min)[1];
+
+  function fireEl(f, per) {
+    const sec = el("div", "fire");
+    const h = el("h4"); h.append(el("span", null, "火力判定 · ネットの言葉の強さ"));
+    const top = f.user.score === f.ai.score ? "互角" : (f.user.score > f.ai.score ? "火力王: あなた" : "火力王: " + per.name);
+    h.append(el("b", null, top)); sec.append(h);
+    [["あなた", f.user], [per.name, f.ai]].forEach(([who, x]) => {
+      const row = el("div", "fire-row");
+      row.append(el("div", "who", who));
+      const rk = el("div", "rank", fireRank(x.score)); rk.append(el("small", null, x.score + "/100"));
+      row.append(rk);
+      const fl = el("div", "flames"); fl.setAttribute("aria-label", `火力 ${x.score}/100`);
+      for (let i = 0; i < 10; i++) fl.append(el("i", i < Math.round(x.score / 10) ? "on" : null));
+      row.append(fl);
+      if (x.punchline) row.append(el("blockquote", "punch", x.punchline));
+      if (x.comment) row.append(el("div", "note", x.comment));
+      sec.append(row);
+    });
+    return sec;
   }
 
   function render() {
@@ -655,6 +694,17 @@ button { cursor: pointer; }
     save(); render();
   }
 
+  // Offline firepower: count internet-slang markers per post, best post = punchline
+  const SLANG = /草|ｗ|w{2,}|笑|それな|論破|乙|ワロ|ガチ|普通に|大丈夫そ|ソース|はい|〜|！|\?|？/g;
+  function offlineFire(t, role) {
+    const ps = t.posts.filter(p => p.role === role);
+    if (!ps.length) return { score: 0, punchline: "", comment: "" };
+    const heatOf = (p) => (p.text.match(SLANG) || []).length * 9 + Math.min(len(p.text), 100) / 5;
+    const best = ps.reduce((a, p) => heatOf(p) > heatOf(a) ? p : a);
+    const score = Math.round(Math.min(100, ps.reduce((a, p) => a + heatOf(p), 0) / ps.length));
+    return { score, punchline: best.text, comment: "（オフライン簡易判定）" };
+  }
+
   async function runJudge() {
     const t = cur();
     if (busy || t.posts.length < 3) return;
@@ -662,17 +712,19 @@ button { cursor: pointer; }
       const u = t.posts.filter(p => p.role === "user");
       const s = Math.min(95, 35 + u.reduce((a, p) => a + Math.min(len(p.text), 120), 0) / Math.max(1, u.length) / 2);
       const us = Math.round(s), as = 100 - us;
-      t.judge = { user: us, ai: as, winner: us > as ? "user" : us < as ? "ai" : "draw", comment: "オフライン判定です（文字量ベースの簡易スコア）。AIに接続できる画面では内容で判定します。", at: Date.now() };
+      t.judge = { user: us, ai: as, winner: us > as ? "user" : us < as ? "ai" : "draw", comment: "オフライン判定です（文字量ベースの簡易スコア）。AIに接続できる画面では内容で判定します。", fire: { user: offlineFire(t, "user"), ai: offlineFire(t, "ai") }, at: Date.now() };
       save(); render(); return;
     }
     busy = true; t.judge = { pending: true, at: Date.now() }; render(); busy = false;
     $("judgeBtn").disabled = true;
     const per = persona(t.persona);
     const log = t.posts.map(p => `${p.role === "ai" ? per.name : "ユーザー"}: ${p.text}`).join("\n");
-    const prompt = `あなたは公平なディベート審判です。以下はSNS上のレスバ（口論）のスレッドです。論理性、具体性、反論の的確さ、ユーモアの観点で両者を採点してください。煽りの強さではなく中身で判定すること。\n\n${log}\n\n次のJSONだけを返してください: {"user": 0-100の整数, "ai": 0-100の整数, "winner": "user" | "ai" | "draw", "comment": "判定理由を日本語で80字以内、少しくだけた口調で"}`;
+    const prompt = `あなたは公平なディベート審判です。以下はSNS上のレスバ（口論）のスレッドです。論理性、具体性、反論の的確さ、ユーモアの観点で両者を採点してください。煽りの強さではなく中身で判定すること。\n\n${log}\n\nこれとは別に「火力」も採点してください。火力はインターネット的なノリでの言葉の強さです。ワードセンス、パンチラインのキレ、煽りの切れ味、ミーム力、ネットスラングの使いこなしを見ます（論理の正しさは関係なし）。差別や中傷で稼いだ火力は加点しないこと。punchline は各自の発言からいちばん火力の高い一文をそのまま抜き出すこと（改変禁止）。fire の comment はネット民のノリで、30字以内（例:「語彙が鋭利すぎて草」「火力はあるけど空振り気味」）。\n\n次のJSONだけを返してください: {"user": 0-100の整数, "ai": 0-100の整数, "winner": "user" | "ai" | "draw", "comment": "判定理由を日本語で80字以内、少しくだけた口調で", "fire": {"user": {"score": 0-100の整数, "punchline": "...", "comment": "..."}, "ai": {"score": 0-100の整数, "punchline": "...", "comment": "..."}}}`;
     try {
       const j = await sample.json(prompt, { cache: false });
-      t.judge = { user: Math.max(0, Math.min(100, Math.round(+j.user || 0))), ai: Math.max(0, Math.min(100, Math.round(+j.ai || 0))), winner: ["user", "ai", "draw"].includes(j.winner) ? j.winner : "draw", comment: String(j.comment || ""), at: Date.now() };
+      const clamp = (n) => Math.max(0, Math.min(100, Math.round(+n || 0)));
+      const fx = (x) => ({ score: clamp(x && x.score), punchline: String((x && x.punchline) || "").slice(0, 200), comment: String((x && x.comment) || "").slice(0, 60) });
+      t.judge = { user: clamp(j.user), ai: clamp(j.ai), winner: ["user", "ai", "draw"].includes(j.winner) ? j.winner : "draw", comment: String(j.comment || ""), fire: j.fire ? { user: fx(j.fire.user), ai: fx(j.fire.ai) } : null, at: Date.now() };
     } catch (e) {
       t.judge = null;
       toast(e && e.code === "rate_limited" ? "判定のリクエストが多すぎます。少し待ってから試してください" : "判定を取得できませんでした。もう一度押してください");
