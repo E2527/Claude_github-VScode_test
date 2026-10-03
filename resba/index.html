@@ -164,6 +164,8 @@ button { cursor: pointer; }
 .post.root .actions { grid-column: 1 / -1; max-width: none; padding: 4px 0 6px; margin: 0; border-bottom: 1px solid var(--line); }
 .sep { height: 1px; background: var(--line); }
 
+.retry { margin: 6px 16px 0 72px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 13px; color: var(--muted); }
+.retry .err { font-family: var(--font-mono); font-size: 11px; color: var(--lose); }
 .judge {
   margin: 10px 16px; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--surface);
 }
@@ -441,10 +443,29 @@ button { cursor: pointer; }
   if (!Array.isArray(threads) || !threads.length) threads = [EXAMPLE];
   let currentId = store.get("resba.current", threads[0].id);
   if (!threads.find(t => t.id === currentId)) currentId = threads[0].id;
+  threads.forEach(t => { if (t.judge && t.judge.pending) t.judge = null; });
   let selPersona = store.get("resba.persona", "logi");
   let heat = store.get("resba.heat", 3);
   let sample = null, sampleReady = false;
-  let ctl = null, busy = false, streamText = "";
+  let ctl = null, busy = false, judging = false, streamText = "", lastError = "", offlineReason = "";
+  // codes after which this view can't use Claude at all -> practice mode
+  const DEAD = ["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"];
+  const ERR_COPY = {
+    not_granted: "AIの利用が許可されていません",
+    sampling_disabled: "このアカウントではAIを使えません",
+    not_declared: "このページのAI設定が無効になっています",
+    capability_disabled: "この画面ではAIを使えません",
+    capability_removed: "このアプリのバージョンではAIを使えません",
+    session_expired: "ログインが切れています。claude.aiにログインし直してから再試行してください",
+    rate_limited: "AIへのリクエストが多すぎるか、利用上限に達しています。少し待ってから再試行してください",
+    refused: "AIがこの流れへの返信を断りました。言い方を変えて返信するか、再試行してください",
+    empty_completion: "AIの返事が空でした。再試行してください",
+    invalid_json: "判定結果の形式が崩れました。もう一度判定してください",
+    prompt_too_large: "スレッドが長すぎます。新しいレスバを始めてください",
+    upstream_error: "AIとの通信が途中で切れました。再試行してください"
+  };
+  const errCopy = (e) => (e && ERR_COPY[e.code]) || "AIの返信を取得できませんでした。再試行してください";
+  function goOffline(e) { sample = null; sampleReady = false; offlineReason = errCopy(e); }
 
   const save = () => { store.set("resba.threads", threads.slice(0, 30)); store.set("resba.current", currentId); };
   const cur = () => threads.find(t => t.id === currentId);
@@ -565,13 +586,22 @@ button { cursor: pointer; }
     const atBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 80;
     feed.textContent = "";
     if (!sampleReady && sample === null && window.__sampleChecked) {
-      const b = el("div", "banner", "この画面ではAIに接続できないため、オフライン練習モードで動いています（定型文で言い返してきます）。");
+      const b = el("div", "banner", (offlineReason ? offlineReason + "。" : "この画面ではAIに接続できないため、") + "オフライン練習モードで動いています（定型文で言い返してきます）。");
       feed.append(b);
     }
     if (t.example) feed.append(el("div", "banner", "これは見本のレスバです。左の「レスバを始める」か、右のトレンドから自分のレスバを始められます。そのまま返信して続けてもOK。"));
     const n = t.posts.length;
     t.posts.forEach((p, i) => feed.append(postEl(p, i, t, { last: i === n - 1 && !busy, streaming: false })));
     if (busy) feed.append(postEl({ role: "ai", at: Date.now() }, n, t, { last: true, streaming: true }));
+    else if (t.posts[n - 1].role === "user") {
+      // the last post has no answer (failed call, or the page reloaded mid-reply)
+      const r = el("div", "retry");
+      r.append(el("span", null, "相手の返信がまだありません"));
+      const b = el("button", "chip-btn", "返信させる"); b.type = "button"; b.onclick = () => aiReply();
+      r.append(b);
+      if (lastError) r.append(el("span", "err", lastError));
+      feed.append(r);
+    }
     if (t.judge) feed.append(judgeEl(t.judge));
     const pad = el("div"); pad.style.height = "24px"; feed.append(pad);
     if (atBottom || busy) feed.scrollTop = feed.scrollHeight;
@@ -579,7 +609,7 @@ button { cursor: pointer; }
     const rallies = t.posts.filter(p => p.role === "user").length;
     $("threadTitle").textContent = "vs " + per.name;
     $("threadSub").textContent = `${rallies} RALLY · 煽り度 LV.${t.heat} · ${per.handle}`;
-    $("judgeBtn").disabled = busy || t.posts.length < 3;
+    $("judgeBtn").disabled = busy || judging || t.posts.length < 3;
 
     renderHistory(); renderPersonas();
     updateCount();
@@ -646,7 +676,7 @@ button { cursor: pointer; }
       "",
       "以下がスレッドの最初のポスト（相手の主張）です:"
     ].join("\n");
-    const posts = t.posts;
+    const posts = t.posts.filter(p => p.text && p.text.trim());
     // keep the opener + the last 18 posts so long fights stay cheap
     let tail = posts.slice(1).slice(-18);
     if (tail.length && tail[0].role === "ai" && posts.length - 1 > 18) { /* fine: opener is user, so ai after it alternates */ }
@@ -662,7 +692,8 @@ button { cursor: pointer; }
 
   async function aiReply() {
     const t = cur();
-    busy = true; streamText = ""; render();
+    if (busy || judging) return;
+    busy = true; streamText = ""; lastError = ""; render();
     let text = "";
     try {
       if (sample) {
@@ -679,10 +710,17 @@ button { cursor: pointer; }
         text = (pool.length ? pool : OFFLINE)[Math.floor(Math.random() * (pool.length || OFFLINE.length))];
       }
     } catch (e) {
-      if (e && e.code === "cancelled") { text = (streamText || "").trim(); if (text) text += "…"; }
-      else if (e && e.code === "not_granted") { sample = null; toast("AIの利用が許可されませんでした。オフライン練習モードに切り替えます"); text = OFFLINE[Math.floor(Math.random() * OFFLINE.length)]; }
-      else if (e && e.code === "rate_limited") { toast("リクエストが多すぎます。少し待ってから返信してください"); text = (e.text || "").trim(); }
-      else { toast("返信を取得できませんでした。もう一度ポストしてください"); text = (e && e.text || "").trim(); }
+      const code = (e && e.code) || "upstream_error";
+      if (code === "cancelled") { text = (streamText || "").trim(); if (text) text += "…"; }
+      else if (DEAD.includes(code)) { goOffline(e); toast(errCopy(e) + "。オフライン練習モードに切り替えます"); text = OFFLINE[Math.floor(Math.random() * OFFLINE.length)]; }
+      else {
+        // keep a partial answer only when it's substantial; otherwise leave the retry button
+        const partial = code === "refused" ? "" : ((e && e.text) || "").trim();
+        text = partial.length >= 20 ? partial + "…" : "";
+        lastError = `${errCopy(e)}（${code}）`;
+        toast(errCopy(e));
+        console.warn("RESBA sample error", e);
+      }
     }
     busy = false; ctl = null;
     if (text) {
@@ -707,7 +745,7 @@ button { cursor: pointer; }
 
   async function runJudge() {
     const t = cur();
-    if (busy || t.posts.length < 3) return;
+    if (busy || judging || t.posts.length < 3) return;
     if (!sample) { // offline judge
       const u = t.posts.filter(p => p.role === "user");
       const s = Math.min(95, 35 + u.reduce((a, p) => a + Math.min(len(p.text), 120), 0) / Math.max(1, u.length) / 2);
@@ -715,8 +753,7 @@ button { cursor: pointer; }
       t.judge = { user: us, ai: as, winner: us > as ? "user" : us < as ? "ai" : "draw", comment: "オフライン判定です（文字量ベースの簡易スコア）。AIに接続できる画面では内容で判定します。", fire: { user: offlineFire(t, "user"), ai: offlineFire(t, "ai") }, at: Date.now() };
       save(); render(); return;
     }
-    busy = true; t.judge = { pending: true, at: Date.now() }; render(); busy = false;
-    $("judgeBtn").disabled = true;
+    judging = true; t.judge = { pending: true, at: Date.now() }; render();
     const per = persona(t.persona);
     const log = t.posts.map(p => `${p.role === "ai" ? per.name : "ユーザー"}: ${p.text}`).join("\n");
     const prompt = `あなたは公平なディベート審判です。以下はSNS上のレスバ（口論）のスレッドです。論理性、具体性、反論の的確さ、ユーモアの観点で両者を採点してください。煽りの強さではなく中身で判定すること。\n\n${log}\n\nこれとは別に「火力」も採点してください。火力はインターネット的なノリでの言葉の強さです。ワードセンス、パンチラインのキレ、煽りの切れ味、ミーム力、ネットスラングの使いこなしを見ます（論理の正しさは関係なし）。差別や中傷で稼いだ火力は加点しないこと。punchline は各自の発言からいちばん火力の高い一文をそのまま抜き出すこと（改変禁止）。fire の comment はネット民のノリで、30字以内（例:「語彙が鋭利すぎて草」「火力はあるけど空振り気味」）。\n\n次のJSONだけを返してください: {"user": 0-100の整数, "ai": 0-100の整数, "winner": "user" | "ai" | "draw", "comment": "判定理由を日本語で80字以内、少しくだけた口調で", "fire": {"user": {"score": 0-100の整数, "punchline": "...", "comment": "..."}, "ai": {"score": 0-100の整数, "punchline": "...", "comment": "..."}}}`;
@@ -727,8 +764,11 @@ button { cursor: pointer; }
       t.judge = { user: clamp(j.user), ai: clamp(j.ai), winner: ["user", "ai", "draw"].includes(j.winner) ? j.winner : "draw", comment: String(j.comment || ""), fire: j.fire ? { user: fx(j.fire.user), ai: fx(j.fire.ai) } : null, at: Date.now() };
     } catch (e) {
       t.judge = null;
-      toast(e && e.code === "rate_limited" ? "判定のリクエストが多すぎます。少し待ってから試してください" : "判定を取得できませんでした。もう一度押してください");
+      if (e && DEAD.includes(e.code)) goOffline(e);
+      toast(errCopy(e) + "（" + ((e && e.code) || "upstream_error") + "）");
+      console.warn("RESBA judge error", e);
     }
+    judging = false;
     save(); render();
   }
 
@@ -743,7 +783,7 @@ button { cursor: pointer; }
   $("composer").addEventListener("submit", (e) => {
     e.preventDefault();
     const v = $("replyInput").value.trim();
-    if (!v || busy || len(v) > LIMIT) return;
+    if (!v || busy || judging || len(v) > LIMIT) return;
     const t = cur();
     t.posts.push({ role: "user", text: v, at: Date.now(), likes: Math.floor(Math.random() * 120), rts: Math.floor(Math.random() * 10) });
     $("replyInput").value = ""; autosize();
