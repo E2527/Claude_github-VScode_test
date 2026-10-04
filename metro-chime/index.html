@@ -353,7 +353,7 @@ function renderClock(now) {
 /* ---------- audio engine (all synthesized, no samples) ---------- */
 const BPM = 122, SPB = 60 / BPM, STEP = SPB / 4, BAR = STEP * 16;
 let ctx = null, master, duck, verbIn, delayIn, noiseBuf, analyser, fft;
-let playing = false, bgmOn = false, curStep = 0, firstStep = 0, nextTime = 0, timer = null;
+let playing = false, bgmOn = false, curStep = 0, firstStep = 0, nextTime = 0, startTime = 0, timer = null;
 const vis = [];
 
 function initAudio() {
@@ -500,7 +500,7 @@ function startMusic(fromStep = 0) {
   if (playing) return;
   playing = true;
   firstStep = curStep = fromStep;
-  nextTime = ctx.currentTime + 0.06;
+  nextTime = startTime = ctx.currentTime + 0.06;
   master.gain.cancelScheduledValues(ctx.currentTime);
   master.gain.setValueAtTime(0.9, ctx.currentTime);
   scheduler();
@@ -580,27 +580,30 @@ function speak(text, done) {
   } catch (e) { setTimeout(fin, BAR * 2000); }
 }
 
-function announce() {
+function announce({ countIn = true } = {}) {
   if (busy) return;
   unlock();
   busy = true;
   const fresh = !playing;
   if (fresh) startMusic(16);
 
-  // start on the next bar line; the first bar is a 4-3-2-1 count-in
+  // start on the next bar line; with countIn the first bar is a 4-3-2-1 count-in
   let t0 = nextTime + ((16 - (curStep % 16)) % 16) * STEP;
-  if (t0 - ctx.currentTime < 0.15) t0 += BAR;
-  const t1 = t0 + BAR;
+  if (fresh && !countIn) t0 = startTime; // music was started just now: begin on its very first beat
+  else if (t0 - ctx.currentTime < (countIn ? 0.15 : 0.03)) t0 += BAR;
+  const t1 = countIn ? t0 + BAR : t0;
   const d = new Date(Date.now() + (t1 - ctx.currentTime) * 1000);
   const z = zoneInfo(d);
   const hm = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
   const wd = d.getDay(), y = d.getFullYear();
 
-  riser(t0, BAR);
-  for (let b = 0; b < 4; b++) {
-    const tb = t0 + b * SPB;
-    bell(tb, 81, 0.07);
-    at(tb, () => card('count', String(4 - b), 'STAND BY'));
+  if (countIn) {
+    riser(t0, BAR);
+    for (let b = 0; b < 4; b++) {
+      const tb = t0 + b * SPB;
+      bell(tb, 81, 0.07);
+      at(tb, () => card('count', String(4 - b), 'STAND BY'));
+    }
   }
   const seq = [
     { v: 'ink',     m: 'TODAY',  s: '本日は', beats: 1, n: 76 },
@@ -651,7 +654,7 @@ function renderAuto() {
 }
 renderAuto();
 
-$('#announce').addEventListener('click', announce);
+$('#announce').addEventListener('click', () => announce());
 $('#bgm').addEventListener('click', () => {
   unlock();
   bgmOn = !bgmOn;
@@ -1084,7 +1087,7 @@ requestAnimationFrame(frame);
     if (!ready) { lockAll(); return; }
     unlock();
     finish();
-    announce();
+    announce({ countIn: false });
   });
   $('#introSkip').addEventListener('click', e => { e.stopPropagation(); finish(); });
   function setReady() {
