@@ -94,15 +94,18 @@ body{margin:0;background:var(--ink);color:var(--text);font-family:var(--f-jp);ov
 .hint{grid-column:1/-1;margin:2px 0 0;font:500 11px/1.5 var(--f-jp);color:var(--dim)}
 
 /* Announcement overlay: one card per beat */
-.show{position:fixed;inset:0;z-index:5;display:grid;place-items:center;overflow:hidden;--bg:rgba(9,13,24,.96);--fg:var(--text);--sub:var(--dim)}
+/* while a time signal plays only the background scene stays behind the cards */
+.app{transition:opacity .35s ease}
+body.showing .app{opacity:0;pointer-events:none}
+.show{position:fixed;inset:0;z-index:5;display:grid;place-items:center;overflow:hidden;--bg:rgba(9,13,24,.5);--fg:var(--text);--sub:var(--dim)}
 .show::before{content:"";position:absolute;inset:0;background:var(--bg);transform-origin:left center}
 .show.go::before{animation:wipe .34s cubic-bezier(.7,0,.2,1) both}
 @keyframes wipe{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 .show[data-v="sodium"]{--bg:var(--sodium);--fg:var(--ink);--sub:rgba(9,13,24,.7)}
 .show[data-v="signal"]{--bg:var(--signal);--fg:var(--ink);--sub:rgba(9,13,24,.7)}
 .show[data-v="tail"]{--bg:var(--tail);--fg:var(--ink);--sub:rgba(9,13,24,.7)}
-.show[data-v="count"]{--bg:rgba(9,13,24,.82);--fg:var(--sodium)}
-.show[data-v="outline"]{--bg:rgba(9,13,24,.92);--fg:transparent;--sub:var(--signal)}
+.show[data-v="count"]{--bg:rgba(9,13,24,.3);--fg:var(--sodium)}
+.show[data-v="outline"]{--bg:rgba(9,13,24,.45);--fg:transparent;--sub:var(--signal)}
 .show[data-v="outline"] .main{-webkit-text-stroke:2px var(--signal)}
 .show[hidden]{display:none}
 .show.out{animation:fadeout .6s ease both}
@@ -548,6 +551,7 @@ let busy = false;
 
 function card(v, main, sub) {
   show.hidden = false;
+  document.body.classList.add('showing');
   show.classList.remove('out', 'go');
   show.dataset.v = v;
   cardMain.textContent = main;
@@ -558,6 +562,7 @@ function card(v, main, sub) {
 }
 function closeShow() {
   show.classList.add('out');
+  document.body.classList.remove('showing');
   setTimeout(() => { show.hidden = true; show.classList.remove('out', 'go'); }, 600);
 }
 function at(t, fn) {
