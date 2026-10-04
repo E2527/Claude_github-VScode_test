@@ -148,7 +148,7 @@ body{margin:0;background:var(--ink);color:var(--text);font-family:var(--f-jp);ov
 .intro.p2 .band.b3{animation-delay:.14s}
 @keyframes bandrun{from{transform:translateX(0) skewX(-14deg)}to{transform:translateX(190vw) skewX(-14deg)}}
 .intro .stage{position:relative;display:flex;flex-direction:column;align-items:center;gap:22px;width:100%;padding-inline:16px;box-sizing:border-box}
-.intro .title{display:flex;flex-direction:column;align-items:center;font:900 min(27vw,170px)/.82 var(--f-display);letter-spacing:.02em}
+.intro .title{display:flex;flex-direction:column;align-items:center;font:900 min(24vw,170px)/.82 var(--f-display);letter-spacing:.02em}
 .intro .title b{display:block;font-weight:inherit;opacity:0}
 .intro .title .a{color:var(--text)}
 .intro .title .b{color:var(--sodium)}
@@ -165,11 +165,18 @@ body{margin:0;background:var(--ink);color:var(--text);font-family:var(--f-jp);ov
 .intro .cell.gap::after{display:none}
 .intro .cell.lock{color:var(--text)}
 .intro .cell.lock.hot{color:var(--sodium)}
-.intro .meta{display:flex;justify-content:space-between;width:min(100%,360px);font:600 9px/1 var(--f-mono);letter-spacing:.18em;color:var(--dim);opacity:0}
+.intro .meta{display:flex;justify-content:space-between;gap:12px;width:100%;max-width:340px;box-sizing:border-box;font:600 9px/1 var(--f-mono);letter-spacing:.18em;color:var(--dim);opacity:0}
 .intro.p3 .meta{opacity:1;transition:opacity .3s .2s}
 .intro .meta .stat{color:var(--signal)}
 .intro.out .stage{animation:fadeout .25s both}
-.intro .skip{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);font:600 9px/1 var(--f-mono);letter-spacing:.18em;color:var(--dim)}
+.intro .tapgo{display:flex;flex-direction:column;align-items:center;gap:10px;opacity:0;font:800 clamp(28px,9vw,48px)/1 var(--f-display);letter-spacing:.14em;color:var(--sodium)}
+.intro .tapgo span{font:700 13px/1 var(--f-jp);letter-spacing:.22em;color:var(--text)}
+.intro.ready .tapgo{opacity:1;animation:blink 1.4s ease-in-out infinite}
+@keyframes blink{50%{opacity:.35}}
+.intro .skip{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);appearance:none;background:transparent;border:1px solid var(--line);
+  color:var(--dim);font:500 12px/1 var(--f-jp);letter-spacing:.12em;padding:11px 16px;cursor:pointer;opacity:0;transition:opacity .3s}
+.intro.ready .skip{opacity:1}
+.intro .skip:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
 .intro.out .skip{opacity:0}
 
 .app.pre > *{opacity:0}
@@ -240,7 +247,7 @@ body{margin:0;background:var(--ink);color:var(--text);font-family:var(--f-jp);ov
   <div class="hud br" id="hudBr">122 BPM<br>--:--:--</div>
 </div>
 
-<div class="intro" id="intro" aria-hidden="true">
+<div class="intro" id="intro" role="button" aria-label="タップで時報スタート">
   <div class="blinds"><i style="--n:0"></i><i style="--n:1"></i><i style="--n:2"></i><i style="--n:3"></i><i style="--n:4"></i><i style="--n:5"></i><i style="--n:6"></i><i style="--n:7"></i></div>
   <i class="line"></i>
   <i class="band b1"></i><i class="band b2"></i><i class="band b3"></i>
@@ -248,8 +255,9 @@ body{margin:0;background:var(--ink);color:var(--text);font-family:var(--f-jp);ov
     <div class="title"><b class="a">METRO</b><b class="b">CHIME</b></div>
     <div class="board" id="board"></div>
     <div class="meta"><span>TIME SIGNAL SYSTEM</span><span class="stat" id="introStat">起動中</span></div>
+    <div class="tapgo">TAP TO START<span>タップで時報スタート</span></div>
   </div>
-  <span class="skip">TAP TO SKIP</span>
+  <button class="skip" id="introSkip" type="button">時計だけ表示</button>
 </div>
 
 <script>
@@ -1069,7 +1077,28 @@ requestAnimationFrame(frame);
     digitEls.forEach(d => { d.classList.remove('roll'); void d.offsetWidth; d.classList.add('roll'); });
     setTimeout(() => { el.hidden = true; }, 1200);
   }
-  el.addEventListener('click', finish);
+  // iOS only plays sound after a tap, so the intro ends on "TAP TO START" and that tap starts the time signal
+  let ready = false;
+  el.addEventListener('click', () => {
+    if (done) return;
+    if (!ready) { lockAll(); return; }
+    unlock();
+    finish();
+    announce();
+  });
+  $('#introSkip').addEventListener('click', e => { e.stopPropagation(); finish(); });
+  function setReady() {
+    ready = true;
+    $('#introStat').textContent = 'READY';
+    el.classList.add('ready');
+  }
+  function lockAll() {
+    if (ready) return;
+    clearInterval(spin);
+    el.classList.add('p1', 'p2', 'p3');
+    cells.forEach(o => { o.locked = true; o.c.textContent = o.ch; o.c.classList.add('lock'); });
+    setReady();
+  }
 
   // split-flap board: date + weekday on top, time + zone below
   const d = new Date(), z = zoneInfo(d);
@@ -1104,13 +1133,13 @@ requestAnimationFrame(frame);
           setTimeout(() => o.c.classList.remove('hot'), 260);
         } else { left++; const p = POOL[o.kind]; o.c.textContent = p[Math.floor(Math.random() * p.length)]; }
       });
-      if (!left) { clearInterval(spin); $('#introStat').textContent = 'READY'; later(550, finish); }
+      if (!left) { clearInterval(spin); setReady(); }
     }, 55);
   }
   later(30, () => el.classList.add('p1'));
   later(420, () => el.classList.add('p2'));
   later(1100, () => { el.classList.add('p3'); startBoard(); });
-  later(6000, finish); // safety net
+  later(6000, lockAll); // safety net
 })();
 
 if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window.self) {
