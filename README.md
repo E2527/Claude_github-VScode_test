@@ -135,5 +135,15 @@ python -m unittest discover -s tests
 - **BGM**: 音楽を流しっぱなしにする (再生中は画面スリープを抑止)
 - **自動時報**: 毎時 / 15分毎 / OFF。アプリを開いていて、一度タップして音を有効にした後に動作
 
-iPhone で使うには、HTTPS で公開したページ (GitHub Pages など) を Safari で開き、共有 → **ホーム画面に追加** でアプリとして起動できます。
-ローカルで試す場合は `npx serve metro-chime` で起動してください。
+### iPhone に入れる (ホーム画面アプリ)
+
+一度だけネットからページを開けば、あとは iPhone の中だけで動きます (フォント・音楽・読み上げ・背景すべて端末内。サーバーとの通信なし)。
+
+1. **公開 (最初の 1 回だけ)**: GitHub のリポジトリで Settings → Pages → Build and deployment を
+   「Deploy from a branch」、ブランチ `claude/practical-goodall-jvs4hz`、フォルダ `/ (root)` にして Save
+2. 数分後、iPhone の **Safari** で https://e2527.github.io/Claude_github-VScode_test/metro-chime/ を開く
+3. 共有ボタン → **ホーム画面に追加**
+4. ホーム画面の「Metro Chime」アイコンから起動。この時点でアプリ一式が iPhone に保存され、機内モードでも動く
+
+更新したときは、ネットにつながった状態で 1 回起動すると裏で新しい版を取り込み、次の起動から反映されます。
+ローカルの PC で試す場合は `npx http-server metro-chime` で起動し、`http://localhost:8080/` を開いてください。
