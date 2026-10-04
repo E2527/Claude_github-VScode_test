@@ -202,10 +202,72 @@ body.showing .app{opacity:0;pointer-events:none}
   .clock .d span.roll,.show.go .main,.show.go .sub,.show.go .bar{animation:none}
   .show.go::before{animation:none}
 }
-@media (max-height:640px){
+@media (orientation:portrait) and (max-height:640px){
   .clock{font-size:clamp(90px,30vw,160px)}
   .facts{display:none}
 }
+
+/* Landscape: giant clock on the left, weekday / date / facts stacked on the right, dock along the bottom */
+@media (orientation:landscape){
+  .app{max-width:1180px;gap:8px;padding-block:10px 12px;
+    padding-inline:max(24px,env(safe-area-inset-left,0px)) max(24px,env(safe-area-inset-right,0px))}
+  .face{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);
+    grid-template-areas:"clock wd" "clock date" "secs facts" "day day";
+    column-gap:clamp(20px,4vw,56px);row-gap:clamp(6px,1.6vh,14px);align-content:center}
+  .clock{grid-area:clock;align-self:center;font-size:clamp(90px,40vh,270px)}
+  .weekday{grid-area:wd;align-self:end}
+  .weekday .en{font-size:clamp(32px,11vh,84px)}
+  .date{grid-area:date;align-self:start}
+  .date .md{font-size:clamp(28px,10vh,72px)}
+  .date .yr{font-size:clamp(18px,6vh,40px)}
+  .secs{grid-area:secs;align-self:center}
+  .facts{grid-area:facts;margin:0}
+  .dayline{grid-area:day}
+  .dock button{padding:10px 12px 9px;flex-direction:row;align-items:baseline;justify-content:space-between;gap:8px}
+  .hint{display:none}
+}
+@media (orientation:landscape) and (max-height:600px){
+  .intro .stage{display:grid;grid-template-columns:auto auto;column-gap:clamp(24px,6vw,64px);row-gap:14px;justify-content:center;align-items:center}
+  .intro .title{grid-row:1 / 4;font-size:min(32vh,17vw)}
+  .intro .board{font-size:clamp(12px,4.6vh,20px)}
+  .intro .board,.intro .meta,.intro .tapgo{grid-column:2}
+  .intro .tapgo{font-size:clamp(22px,8vh,40px)}
+}
+
+/* Rotation: a frame turns into the new orientation, then slats clear to reveal the re-laid-out face */
+.rotor{position:fixed;inset:0;z-index:8;pointer-events:none;overflow:hidden}
+.rotor[hidden]{display:none}
+.rotor .slats{position:absolute;inset:0;display:flex;flex-direction:column}
+.rotor.land .slats{flex-direction:row}
+.rotor .slats i{flex:1;background:var(--ink);margin-bottom:-1px}
+.rotor.land .slats i{margin-bottom:0;margin-right:-1px}
+.rotor .slats i:nth-child(3n+2){background:var(--ink-2)}
+.rotor.go .slats i{animation:slatL .6s cubic-bezier(.7,0,.2,1) both;animation-delay:calc(.6s + var(--n) * 40ms)}
+.rotor.go .slats i:nth-child(even){animation-name:slatR}
+.rotor.land.go .slats i{animation-name:slatU}
+.rotor.land.go .slats i:nth-child(even){animation-name:slatD}
+@keyframes slatL{to{transform:translateX(-101%)}}
+@keyframes slatR{to{transform:translateX(101%)}}
+@keyframes slatU{to{transform:translateY(-101%)}}
+@keyframes slatD{to{transform:translateY(101%)}}
+.rotor .rframe{position:absolute;left:50%;top:50%;width:46vw;height:46vh;box-sizing:border-box;
+  display:grid;place-items:center;transform:translate(-50%,-50%)}
+.rotor.go .rframe{animation:rframe .95s cubic-bezier(.2,.9,.1,1) both}
+@keyframes rframe{
+  0%{transform:translate(-50%,-50%) rotate(var(--from,-90deg)) scale(.62);opacity:1}
+  55%{transform:translate(-50%,-50%) rotate(0) scale(1);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(1.12);opacity:0}
+}
+.rotor .rframe b{position:absolute;width:22px;height:22px;border:0 solid var(--signal)}
+.rotor .rframe .c1{top:0;left:0;border-top-width:3px;border-left-width:3px}
+.rotor .rframe .c2{top:0;right:0;border-top-width:3px;border-right-width:3px}
+.rotor .rframe .c3{bottom:0;left:0;border-bottom-width:3px;border-left-width:3px}
+.rotor .rframe .c4{bottom:0;right:0;border-bottom-width:3px;border-right-width:3px}
+.rotor .rlabel{position:absolute;top:10px;left:14px;font:600 9px/1 var(--f-mono);letter-spacing:.18em;color:var(--signal)}
+.rotor .rtime{font:900 clamp(40px,14vmin,120px)/1 var(--f-display);color:var(--sodium);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.rotor .scan{position:absolute;left:0;right:0;height:2px;top:0;background:var(--signal);box-shadow:0 0 14px var(--signal);opacity:0}
+.rotor.go .scan{animation:scan .7s .05s cubic-bezier(.6,0,.3,1) both}
+@keyframes scan{0%{transform:translateY(0);opacity:1}100%{transform:translateY(100vh);opacity:0}}
 </style>
 </head>
 <body>
@@ -248,6 +310,12 @@ body.showing .app{opacity:0;pointer-events:none}
   <div class="card"><b class="main" id="cardMain"></b><span class="sub" id="cardSub"></span></div>
   <div class="hud tl">Metro Chime<br>Time signal</div>
   <div class="hud br" id="hudBr">122 BPM<br>--:--:--</div>
+</div>
+
+<div class="rotor" id="rotor" hidden aria-hidden="true">
+  <div class="slats"><i style="--n:0"></i><i style="--n:1"></i><i style="--n:2"></i><i style="--n:3"></i><i style="--n:4"></i><i style="--n:5"></i><i style="--n:6"></i></div>
+  <i class="scan"></i>
+  <div class="rframe"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b><span class="rlabel" id="rlabel">LANDSCAPE</span><span class="rtime" id="rtime">00:00</span></div>
 </div>
 
 <div class="intro" id="intro" role="button" aria-label="タップで時報スタート">
@@ -556,7 +624,10 @@ function card(v, main, sub) {
   show.dataset.v = v;
   cardMain.textContent = main;
   cardSub.textContent = sub;
-  cardMain.style.fontSize = `min(${Math.min(34, 150 / Math.max(main.length, 1))}vw, 300px)`;
+  cardMain.style.fontSize = `min(${Math.min(34, 150 / Math.max(main.length, 1))}vw, 300px, 52vh)`;
+  // shrink to fit if the face renders wider than expected (e.g. before the web font loads)
+  const maxW = innerWidth * 0.9;
+  if (cardMain.offsetWidth > maxW) cardMain.style.fontSize = `${parseFloat(getComputedStyle(cardMain).fontSize) * maxW / cardMain.offsetWidth}px`;
   void show.offsetWidth;
   show.classList.add('go');
 }
@@ -1291,6 +1362,41 @@ function frame(nowMs) {
 }
 requestAnimationFrame(frame);
 
+function rollDigits() {
+  digitEls.forEach(d => { d.classList.remove('roll'); void d.offsetWidth; d.classList.add('roll'); });
+}
+
+/* ---------- rotation: re-stage the face when the phone turns ---------- */
+(function rotation() {
+  const rotor = $('#rotor'), app = $('.app');
+  const angle = () => (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+  let wasLand = innerWidth > innerHeight, lastAngle = angle(), timers = [];
+  addEventListener('resize', () => {
+    const land = innerWidth > innerHeight;
+    if (land === wasLand) return;
+    wasLand = land;
+    const a = angle();
+    if (reduced || !$('#intro').hidden) { lastAngle = a; return; }
+    timers.forEach(clearTimeout); timers = [];
+    // turn the frame the same way the device turned
+    const from = land ? (a === 90 ? '90deg' : '-90deg') : (lastAngle === 90 ? '-90deg' : '90deg');
+    lastAngle = a;
+    const now = new Date();
+    rotor.style.setProperty('--from', from);
+    $('#rtime').textContent = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+    $('#rlabel').textContent = land ? 'LANDSCAPE' : 'PORTRAIT';
+    rotor.hidden = false;
+    rotor.classList.toggle('land', land);
+    rotor.classList.remove('go'); void rotor.offsetWidth; rotor.classList.add('go');
+    app.classList.add('pre'); app.classList.remove('enter');
+    timers.push(setTimeout(() => {
+      app.classList.remove('pre'); void app.offsetWidth; app.classList.add('enter');
+      rollDigits();
+    }, 620));
+    timers.push(setTimeout(() => { rotor.hidden = true; rotor.classList.remove('go'); }, 1600));
+  });
+})();
+
 /* ---------- launch intro ---------- */
 (function intro() {
   const el = $('#intro'), app = $('.app');
@@ -1306,7 +1412,7 @@ requestAnimationFrame(frame);
     clearInterval(spin);
     el.classList.add('p3', 'out');
     app.classList.remove('pre'); app.classList.add('enter');
-    digitEls.forEach(d => { d.classList.remove('roll'); void d.offsetWidth; d.classList.add('roll'); });
+    rollDigits();
     setTimeout(() => { el.hidden = true; }, 1200);
   }
   // iOS only plays sound after a tap, so the intro ends on "TAP TO START" and that tap starts the time signal
