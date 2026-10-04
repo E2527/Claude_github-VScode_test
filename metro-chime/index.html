@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Metro Chime">
+<meta name="theme-color" content="#090d18">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>html{box-sizing:border-box;padding-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}</style>
+<!--ARTIFACT-START-->
+<title>Metro Chime</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;800;900&family=Martian+Mono:wght@400;600&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<style>
+/* Layout: one portrait screen — status strip, giant clock, date stack, control dock; a night-city canvas runs behind. Single dark look by design. */
+:root{
+  --ink:#090d18; --ink-2:#121a2c; --line:#26314b; --text:#e9edf6; --dim:#8a94ad;
+  --sodium:#ffb04a; --signal:#5fe3ff; --tail:#ff4f6a;
+  --f-display:"Big Shoulders Display","Arial Narrow","Helvetica Neue",sans-serif;
+  --f-jp:"Zen Kaku Gothic New","Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;
+  --f-mono:"Martian Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{margin:0;background:var(--ink);color:var(--text);font-family:var(--f-jp);overflow:hidden;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+#city{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block}
+
+.app{position:relative;z-index:1;height:100%;box-sizing:border-box;max-width:560px;margin:0 auto;
+  padding-inline:20px;padding-block:14px 18px;display:grid;grid-template-rows:auto 1fr auto;gap:12px;overflow-y:auto}
+
+.strip{display:flex;align-items:center;gap:12px;font:600 10px/1 var(--f-mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.strip .zone{color:var(--text)}
+.strip .beat{margin-left:auto;display:flex;gap:4px}
+.strip .beat i{width:7px;height:7px;background:var(--line);transition:background .08s}
+.strip .beat i.on{background:var(--sodium);box-shadow:0 0 10px var(--sodium)}
+
+.face{display:flex;flex-direction:column;justify-content:center;gap:10px;min-width:0}
+.weekday{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.weekday .en{font:800 clamp(44px,15vw,84px)/.9 var(--f-display);letter-spacing:.04em;color:var(--sodium);text-shadow:0 0 28px rgba(255,176,74,.35)}
+.weekday .jp{font:700 clamp(18px,5.4vw,26px)/1 var(--f-jp);letter-spacing:.2em}
+
+.clock{display:flex;align-items:flex-end;font:900 clamp(110px,40vw,220px)/.82 var(--f-display);font-variant-numeric:tabular-nums;
+  letter-spacing:-.01em;margin-left:-.03em}
+.clock .d{display:inline-block;width:.5em;text-align:center;overflow:hidden}
+.clock .d span{display:inline-block}
+.clock .d span.roll{animation:roll .55s cubic-bezier(.2,.9,.1,1)}
+@keyframes roll{
+  0%{transform:translateY(55%) skewY(-10deg);opacity:0;color:var(--signal)}
+  60%{color:var(--signal)}
+  100%{transform:none;opacity:1}
+}
+.clock .colon{width:.24em;text-align:center;color:var(--sodium);transition:opacity .2s}
+.clock .colon.dim{opacity:.25}
+.clock .ampm{font:600 11px/1 var(--f-mono);letter-spacing:.14em;color:var(--dim);margin:0 0 .6em .5em;writing-mode:vertical-rl}
+
+.secs{display:flex;gap:2px;align-items:flex-end;height:14px}
+.secs i{flex:1;height:7px;background:var(--line)}
+.secs i.q{height:14px}
+.secs i.lit{background:var(--text)}
+.secs i.now{background:var(--sodium);box-shadow:0 0 8px var(--sodium)}
+
+.date{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.date .md{font:800 clamp(40px,13vw,72px)/1 var(--f-display);letter-spacing:.03em;font-variant-numeric:tabular-nums}
+.date .yr{font:500 clamp(22px,7vw,40px)/1 var(--f-display);color:var(--signal);letter-spacing:.08em}
+.date .mon{font:600 10px/1 var(--f-mono);letter-spacing:.18em;color:var(--dim)}
+
+.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin:4px 0 0;background:var(--line);border:1px solid var(--line)}
+.facts div{background:rgba(9,13,24,.78);padding:8px 8px 9px;min-width:0}
+.facts dt{font:600 9px/1 var(--f-mono);letter-spacing:.14em;color:var(--dim);margin-bottom:6px}
+.facts dd{margin:0;font:800 20px/1 var(--f-display);font-variant-numeric:tabular-nums;white-space:nowrap}
+.facts dd small{font:500 11px/1 var(--f-jp);color:var(--dim);margin-left:2px}
+.dayline{height:3px;background:var(--line);position:relative;overflow:hidden}
+.dayline i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--signal),var(--sodium))}
+
+.dock{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:8px}
+.dock button{appearance:none;border:1px solid var(--line);background:rgba(18,26,44,.82);color:var(--text);
+  font:700 15px/1.1 var(--f-jp);padding:14px 10px 12px;text-align:left;display:flex;flex-direction:column;gap:6px;cursor:pointer;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:transform .12s,border-color .2s}
+.dock button small{font:600 9px/1 var(--f-mono);letter-spacing:.16em;color:var(--dim)}
+.dock button:active{transform:scale(.97)}
+.dock button:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+.dock .primary{background:var(--sodium);border-color:var(--sodium);color:var(--ink)}
+.dock .primary small{color:rgba(9,13,24,.65)}
+.dock button[aria-pressed="true"]{border-color:var(--signal)}
+.dock button[aria-pressed="true"] small{color:var(--signal)}
+.hint{grid-column:1/-1;margin:2px 0 0;font:500 11px/1.5 var(--f-jp);color:var(--dim)}
+
+/* Announcement overlay: one card per beat */
+.show{position:fixed;inset:0;z-index:5;display:grid;place-items:center;overflow:hidden;--bg:rgba(9,13,24,.96);--fg:var(--text);--sub:var(--dim)}
+.show::before{content:"";position:absolute;inset:0;background:var(--bg);transform-origin:left center}
+.show.go::before{animation:wipe .34s cubic-bezier(.7,0,.2,1) both}
+@keyframes wipe{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.show[data-v="sodium"]{--bg:var(--sodium);--fg:var(--ink);--sub:rgba(9,13,24,.7)}
+.show[data-v="signal"]{--bg:var(--signal);--fg:var(--ink);--sub:rgba(9,13,24,.7)}
+.show[data-v="tail"]{--bg:var(--tail);--fg:var(--ink);--sub:rgba(9,13,24,.7)}
+.show[data-v="count"]{--bg:rgba(9,13,24,.82);--fg:var(--sodium)}
+.show[data-v="outline"]{--bg:rgba(9,13,24,.92);--fg:transparent;--sub:var(--signal)}
+.show[data-v="outline"] .main{-webkit-text-stroke:2px var(--signal)}
+.show[hidden]{display:none}
+.show.out{animation:fadeout .6s ease both}
+@keyframes fadeout{to{opacity:0}}
+.card{position:relative;display:flex;flex-direction:column;align-items:center;gap:14px;padding-inline:16px;max-width:100%;box-sizing:border-box}
+.card .main{font:900 120px/.84 var(--f-display);color:var(--fg);text-transform:uppercase;letter-spacing:.01em;white-space:nowrap;font-variant-numeric:tabular-nums}
+.card .sub{font:700 clamp(16px,5vw,26px)/1.2 var(--f-jp);color:var(--sub);letter-spacing:.24em;text-align:center}
+.show.go .main{animation:slam .42s cubic-bezier(.2,.9,.1,1) both}
+.show.go .sub{animation:rise .5s .08s cubic-bezier(.2,.9,.1,1) both}
+@keyframes slam{from{transform:translateX(-14%) skewX(-16deg);clip-path:inset(0 100% 0 0)}to{transform:none;clip-path:inset(0 0 0 0)}}
+@keyframes rise{from{transform:translateY(60%);opacity:0}to{transform:none;opacity:1}}
+.show .bar{position:absolute;left:0;width:100%;height:3px;transform:translateX(-101%)}
+.show .bar:nth-of-type(1){top:18%;background:var(--signal)}
+.show .bar:nth-of-type(2){top:74%;background:var(--sodium);height:8px}
+.show .bar:nth-of-type(3){top:80%;background:var(--tail);height:2px}
+.show.go .bar{animation:streak .55s cubic-bezier(.6,0,.2,1) both}
+.show.go .bar:nth-of-type(2){animation-delay:.05s}
+.show.go .bar:nth-of-type(3){animation-delay:.1s;animation-direction:reverse}
+@keyframes streak{from{transform:translateX(-101%)}to{transform:translateX(101%)}}
+.hud{position:absolute;font:600 9px/1.6 var(--f-mono);letter-spacing:.16em;color:var(--sub);text-transform:uppercase}
+.hud.tl{top:calc(env(safe-area-inset-top,0px) + 16px);left:16px}
+.hud.br{bottom:calc(env(safe-area-inset-bottom,0px) + 16px);right:16px;text-align:right}
+
+@media (prefers-reduced-motion:reduce){
+  .clock .d span.roll,.show.go .main,.show.go .sub,.show.go .bar{animation:none}
+  .show.go::before{animation:none}
+}
+@media (max-height:640px){
+  .clock{font-size:clamp(90px,30vw,160px)}
+  .facts{display:none}
+}
+</style>
+</head>
+<body>
+<canvas id="city" aria-hidden="true"></canvas>
+
+<div class="app">
+  <header class="strip">
+    <span class="zone" id="zone">TOKYO</span>
+    <span id="utc">UTC+09:00</span>
+    <span class="beat" id="beat" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+  </header>
+
+  <main class="face" aria-live="off">
+    <div class="weekday"><span class="en" id="wdEn">SUNDAY</span><span class="jp" id="wdJp">日曜日</span></div>
+    <div class="clock" id="clock" role="timer" aria-label="現在時刻">
+      <span class="d"><span>0</span></span><span class="d"><span>0</span></span><span class="colon" id="colon">:</span><span class="d"><span>0</span></span><span class="d"><span>0</span></span><span class="ampm" id="ampm">PM</span>
+    </div>
+    <div class="secs" id="secs" aria-hidden="true"></div>
+    <div class="date"><span class="md" id="md">10.04</span><span class="yr" id="yr">2026</span><span class="mon" id="mon">OCTOBER</span></div>
+    <dl class="facts">
+      <div><dt>WEEK</dt><dd id="wk">40</dd></div>
+      <div><dt>DAY</dt><dd id="doy">277<small>/365</small></dd></div>
+      <div><dt>ERA</dt><dd id="era">R8</dd></div>
+      <div><dt>TODAY</dt><dd id="pct">50<small>%</small></dd></div>
+    </dl>
+    <div class="dayline" aria-hidden="true"><i id="dayFill"></i></div>
+  </main>
+
+  <footer class="dock">
+    <button id="announce" class="primary" type="button">時報を再生<small>ANNOUNCE</small></button>
+    <button id="bgm" type="button" aria-pressed="false">BGM<small>OFF</small></button>
+    <button id="auto" type="button" aria-pressed="true">自動時報<small>毎時</small></button>
+    <p class="hint" id="hint">「時報を再生」で音楽とモーションが始まります。自動時報は一度タップして音を有効にした後に鳴ります。</p>
+  </footer>
+</div>
+
+<div class="show" id="show" hidden>
+  <i class="bar"></i><i class="bar"></i><i class="bar"></i>
+  <div class="card"><b class="main" id="cardMain"></b><span class="sub" id="cardSub"></span></div>
+  <div class="hud tl">Metro Chime<br>Time signal</div>
+  <div class="hud br" id="hudBr">122 BPM<br>--:--:--</div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const pad2 = n => String(n).padStart(2, '0');
+
+const WD_EN = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+const WD_JP = ['日曜日','月曜日','火曜日','水曜日','木曜日','金曜日','土曜日'];
+const MON_EN = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+
+/* ---------- calendar facts ---------- */
+function isoWeek(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil(((t - y0) / 864e5 + 1) / 7);
+}
+function dayOfYear(d) {
+  return Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(d.getFullYear(), 0, 1)) / 864e5) + 1;
+}
+const daysInYear = y => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0 ? 366 : 365;
+const reiwa = y => y - 2018;
+function zoneInfo(d) {
+  let tz = '';
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+  const city = (tz.split('/').pop() || 'LOCAL').replace(/_/g, ' ').toUpperCase();
+  const off = -d.getTimezoneOffset();
+  const sign = off >= 0 ? '+' : '-';
+  const a = Math.abs(off);
+  return { city, utc: `UTC${sign}${pad2(Math.floor(a / 60))}:${pad2(a % 60)}`, short: tz === 'Asia/Tokyo' ? 'JST' : city };
+}
+function jpTime(d) {
+  const h = d.getHours(), m = d.getMinutes();
+  const ap = h < 12 ? '午前' : '午後';
+  const h12 = h % 12;
+  return `${ap}${h12}時` + (m === 0 ? 'ちょうど' : `${m}分`);
+}
+
+/* ---------- clock face ---------- */
+const digitEls = [...document.querySelectorAll('#clock .d span')];
+const secs = $('#secs');
+for (let i = 0; i < 60; i++) {
+  const t = document.createElement('i');
+  if (i % 15 === 0) t.className = 'q';
+  secs.appendChild(t);
+}
+const secTicks = [...secs.children];
+let lastSec = -1, lastMin = -1;
+
+function renderClock(now) {
+  const s = now.getSeconds();
+  if (s === lastSec) return;
+  lastSec = s;
+  const h = now.getHours(), m = now.getMinutes();
+  const digits = (pad2(h) + pad2(m)).split('');
+  digits.forEach((ch, i) => {
+    const el = digitEls[i];
+    if (el.textContent !== ch) {
+      el.textContent = ch;
+      el.classList.remove('roll'); void el.offsetWidth; el.classList.add('roll');
+    }
+  });
+  $('#colon').classList.toggle('dim', s % 2 === 1);
+  $('#ampm').textContent = h < 12 ? 'AM' : 'PM';
+  secTicks.forEach((t, i) => { t.classList.toggle('lit', i < s); t.classList.toggle('now', i === s); });
+  $('#pct').innerHTML = Math.floor((h * 3600 + m * 60 + s) / 864) + '<small>%</small>';
+  $('#dayFill').style.width = ((h * 3600 + m * 60 + s) / 864) + '%';
+
+  if (m !== lastMin) {
+    const first = lastMin === -1;
+    lastMin = m;
+    const wd = now.getDay(), y = now.getFullYear();
+    $('#wdEn').textContent = WD_EN[wd];
+    $('#wdJp').textContent = WD_JP[wd];
+    $('#md').textContent = `${pad2(now.getMonth() + 1)}.${pad2(now.getDate())}`;
+    $('#yr').textContent = y;
+    $('#mon').textContent = MON_EN[now.getMonth()];
+    $('#wk').textContent = isoWeek(now);
+    $('#doy').innerHTML = `${dayOfYear(now)}<small>/${daysInYear(y)}</small>`;
+    $('#era').innerHTML = `${reiwa(y)}<small>令和</small>`;
+    const z = zoneInfo(now);
+    $('#zone').textContent = z.city;
+    $('#utc').textContent = z.utc;
+    if (!first) maybeAutoChime(now);
+  }
+}
+
+/* ---------- audio engine (all synthesized, no samples) ---------- */
+const BPM = 122, SPB = 60 / BPM, STEP = SPB / 4, BAR = STEP * 16;
+let ctx = null, master, duck, verbIn, delayIn, noiseBuf, analyser, fft;
+let playing = false, bgmOn = false, curStep = 0, firstStep = 0, nextTime = 0, timer = null;
+const vis = [];
+
+function initAudio() {
+  if (ctx) return;
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  master = ctx.createGain(); master.gain.value = 0.9;
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -14; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.2;
+  analyser = ctx.createAnalyser(); analyser.fftSize = 256; fft = new Uint8Array(analyser.frequencyBinCount);
+  master.connect(comp); comp.connect(analyser); analyser.connect(ctx.destination);
+  duck = ctx.createGain(); duck.connect(master);
+
+  noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+  const nd = noiseBuf.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+
+  const conv = ctx.createConvolver();
+  const len = Math.floor(ctx.sampleRate * 2.6);
+  const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = ir.getChannelData(c);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  }
+  conv.buffer = ir;
+  verbIn = ctx.createGain(); verbIn.gain.value = 0.5;
+  const verbOut = ctx.createGain(); verbOut.gain.value = 0.32;
+  verbIn.connect(conv); conv.connect(verbOut); verbOut.connect(master);
+
+  delayIn = ctx.createGain();
+  const dl = ctx.createDelay(2); dl.delayTime.value = STEP * 3;
+  const fb = ctx.createGain(); fb.gain.value = 0.38;
+  const dlf = ctx.createBiquadFilter(); dlf.type = 'lowpass'; dlf.frequency.value = 2600;
+  const dout = ctx.createGain(); dout.gain.value = 0.45;
+  delayIn.connect(dl); dl.connect(dlf); dlf.connect(fb); fb.connect(dl); dlf.connect(dout);
+  dout.connect(duck); dout.connect(verbIn);
+}
+
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+function env(g, t, a, peak, dec) {
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + a);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + a + dec);
+}
+function noise(t, dur) {
+  const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.start(t); s.stop(t + dur); return s;
+}
+function kick(t) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(44, t + 0.13);
+  env(g, t, 0.003, 1, 0.38); o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.45);
+  // sidechain pump on everything except drums
+  duck.gain.setValueAtTime(0.3, t); duck.gain.linearRampToValueAtTime(1, t + 0.24);
+  vis.push({ t, k: 'kick' });
+}
+function hat(t, v, open) {
+  const s = noise(t, 0.3), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  f.type = 'highpass'; f.frequency.value = 7600;
+  env(g, t, 0.001, v, open ? 0.2 : 0.035); s.connect(f); f.connect(g); g.connect(master);
+}
+function clap(t) {
+  const s = noise(t, 0.3), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  f.type = 'bandpass'; f.frequency.value = 1600; f.Q.value = 0.8;
+  g.gain.setValueAtTime(0.0001, t);
+  [0, 0.011, 0.022].forEach(o => { g.gain.setValueAtTime(0.5, t + o); g.gain.exponentialRampToValueAtTime(0.08, t + o + 0.009); });
+  g.gain.setValueAtTime(0.45, t + 0.033); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+  s.connect(f); f.connect(g); g.connect(master); g.connect(verbIn);
+}
+function bass(t, m, len) {
+  const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  o.type = 'sawtooth'; o.frequency.value = mtof(m);
+  f.type = 'lowpass'; f.Q.value = 7; f.frequency.setValueAtTime(1300, t); f.frequency.exponentialRampToValueAtTime(170, t + 0.18);
+  env(g, t, 0.004, 0.32, len); o.connect(f); f.connect(g); g.connect(duck); o.start(t); o.stop(t + len + 0.05);
+}
+function arp(t, m) {
+  const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(), send = ctx.createGain();
+  o.type = 'square'; o.frequency.value = mtof(m);
+  f.type = 'lowpass'; f.frequency.value = 2800; send.gain.value = 0.6;
+  env(g, t, 0.002, 0.06, 0.15); o.connect(f); f.connect(g); g.connect(duck); g.connect(send); send.connect(delayIn);
+  o.start(t); o.stop(t + 0.2);
+}
+function padChord(t, notes, dur) {
+  const f = ctx.createBiquadFilter(), g = ctx.createGain();
+  f.type = 'lowpass'; f.Q.value = 2;
+  f.frequency.setValueAtTime(500, t); f.frequency.linearRampToValueAtTime(1500, t + dur * 0.5); f.frequency.linearRampToValueAtTime(600, t + dur);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.16, t + 0.9);
+  g.gain.setValueAtTime(0.16, t + dur - 0.3); g.gain.linearRampToValueAtTime(0, t + dur + 0.4);
+  f.connect(g); g.connect(duck); g.connect(verbIn);
+  notes.forEach(n => [-8, 8].forEach(dt => {
+    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = dt;
+    const og = ctx.createGain(); og.gain.value = 0.12 / notes.length;
+    o.connect(og); og.connect(f); o.start(t); o.stop(t + dur + 0.5);
+  }));
+}
+function bell(t, m, v = 0.18) {
+  const c = ctx.createOscillator(), mod = ctx.createOscillator(), mg = ctx.createGain(), g = ctx.createGain();
+  c.frequency.value = mtof(m); mod.frequency.value = mtof(m) * 3.5;
+  mg.gain.setValueAtTime(mtof(m) * 2.2, t); mg.gain.exponentialRampToValueAtTime(1, t + 0.9);
+  mod.connect(mg); mg.connect(c.frequency);
+  env(g, t, 0.003, v, 1.3); c.connect(g); g.connect(master); g.connect(verbIn);
+  c.start(t); mod.start(t); c.stop(t + 1.5); mod.stop(t + 1.5);
+}
+function riser(t, dur) {
+  const s = noise(t, dur + 0.1), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  f.type = 'bandpass'; f.Q.value = 3; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(7000, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.22, t + dur); g.gain.linearRampToValueAtTime(0, t + dur + 0.05);
+  s.connect(f); f.connect(g); g.connect(master); g.connect(verbIn);
+}
+function zap(t) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.frequency.setValueAtTime(2200, t); o.frequency.exponentialRampToValueAtTime(110, t + 0.12);
+  env(g, t, 0.002, 0.1, 0.12); o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.2);
+}
+
+// Am9 – Fmaj9 – Cmaj7 – Em7, two bars each
+const CHORDS = [
+  { b: 33, n: [57, 60, 64, 67, 71] },
+  { b: 29, n: [53, 57, 60, 64, 67] },
+  { b: 36, n: [55, 59, 64, 67, 71] },
+  { b: 28, n: [55, 59, 62, 67, 71] },
+];
+const BASS = [0,0,1,1, 0,0,1,0, 0,0,1,1, 0,1,1,0];
+const BOCT = [0,0,0,12, 0,0,0,0, 0,0,12,0, 0,0,12,0];
+const ARP  = [0,1,2,3, 4,3,2,1, 0,2,4,2, 1,3,4,3];
+
+function playStep(s, t) {
+  const bar = Math.floor(s / 16), i = s % 16, ch = CHORDS[Math.floor(bar / 2) % 4];
+  if (i === 0 && (bar % 2 === 0 || s === firstStep)) padChord(t, ch.n, bar % 2 === 0 ? BAR * 2 : BAR);
+  if (bar >= 1 && i % 4 === 0) kick(t);
+  if (bar >= 1 && (i === 4 || i === 12)) clap(t);
+  if (i % 4 === 2) hat(t, 0.16, true);
+  else if (bar >= 1) hat(t, i % 2 ? 0.045 : 0.085, false);
+  if (bar >= 2 && BASS[i]) bass(t, ch.b + BOCT[i], STEP * 1.5);
+  if (bar >= 1 && (bar % 4 !== 3 || i < 8)) arp(t, ch.n[ARP[i]] + 12);
+  if (i % 4 === 0) vis.push({ t, k: 'beat', v: i / 4 });
+}
+function scheduler() {
+  while (nextTime < ctx.currentTime + 0.12) {
+    playStep(curStep, nextTime);
+    nextTime += STEP; curStep++;
+  }
+}
+function startMusic(fromStep = 0) {
+  if (playing) return;
+  playing = true;
+  firstStep = curStep = fromStep;
+  nextTime = ctx.currentTime + 0.06;
+  master.gain.cancelScheduledValues(ctx.currentTime);
+  master.gain.setValueAtTime(0.9, ctx.currentTime);
+  scheduler();
+  timer = setInterval(scheduler, 25);
+  wake(true);
+}
+function stopMusic() {
+  if (!playing) return;
+  const t = ctx.currentTime;
+  master.gain.cancelScheduledValues(t);
+  master.gain.setValueAtTime(master.gain.value, t);
+  master.gain.linearRampToValueAtTime(0, t + 1.2);
+  setTimeout(() => {
+    if (bgmOn || busy) { master.gain.setValueAtTime(0.9, ctx.currentTime); return; }
+    clearInterval(timer); playing = false;
+    master.gain.setValueAtTime(0.9, ctx.currentTime);
+    wake(false);
+  }, 1300);
+}
+
+let lock = null;
+async function wake(on) {
+  try {
+    if (on && !lock && navigator.wakeLock) { lock = await navigator.wakeLock.request('screen'); lock.addEventListener('release', () => { lock = null; }); }
+    else if (!on && lock) { await lock.release(); lock = null; }
+  } catch (e) { lock = null; }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && playing) wake(true); });
+
+let unlocked = false;
+function unlock() {
+  initAudio();
+  if (ctx.state !== 'running') ctx.resume();
+  if (!unlocked) {
+    unlocked = true;
+    // iOS only lets speech start from a tap; prime it with a silent utterance
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {}
+    $('#hint').textContent = 'サウンド有効。マナーモードでも鳴ります。音量ボタンで調整してください。';
+  }
+}
+
+/* ---------- announcement sequence ---------- */
+const show = $('#show'), cardMain = $('#cardMain'), cardSub = $('#cardSub');
+let busy = false;
+
+function card(v, main, sub) {
+  show.hidden = false;
+  show.classList.remove('out', 'go');
+  show.dataset.v = v;
+  cardMain.textContent = main;
+  cardSub.textContent = sub;
+  cardMain.style.fontSize = `min(${Math.min(34, 150 / Math.max(main.length, 1))}vw, 300px)`;
+  void show.offsetWidth;
+  show.classList.add('go');
+}
+function closeShow() {
+  show.classList.add('out');
+  setTimeout(() => { show.hidden = true; show.classList.remove('out', 'go'); }, 600);
+}
+function at(t, fn) {
+  const lat = ctx.outputLatency || ctx.baseLatency || 0;
+  setTimeout(fn, Math.max(0, (t - ctx.currentTime + lat) * 1000));
+}
+function speak(text, done) {
+  let finished = false;
+  const fin = () => { if (!finished) { finished = true; done(); } };
+  try {
+    if (!('speechSynthesis' in window)) throw 0;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ja-JP'; u.rate = 1.02; u.pitch = 1;
+    const v = speechSynthesis.getVoices().find(v => /^ja/i.test(v.lang));
+    if (v) u.voice = v;
+    u.onend = fin; u.onerror = fin;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+    setTimeout(fin, 9000);
+  } catch (e) { setTimeout(fin, BAR * 2000); }
+}
+
+function announce() {
+  if (busy) return;
+  unlock();
+  busy = true;
+  const fresh = !playing;
+  if (fresh) startMusic(16);
+
+  // start on the next bar line; the first bar is a 4-3-2-1 count-in
+  let t0 = nextTime + ((16 - (curStep % 16)) % 16) * STEP;
+  if (t0 - ctx.currentTime < 0.15) t0 += BAR;
+  const t1 = t0 + BAR;
+  const d = new Date(Date.now() + (t1 - ctx.currentTime) * 1000);
+  const z = zoneInfo(d);
+  const hm = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  const wd = d.getDay(), y = d.getFullYear();
+
+  riser(t0, BAR);
+  for (let b = 0; b < 4; b++) {
+    const tb = t0 + b * SPB;
+    bell(tb, 81, 0.07);
+    at(tb, () => card('count', String(4 - b), 'STAND BY'));
+  }
+  const seq = [
+    { v: 'ink',     m: 'TODAY',  s: '本日は', beats: 1, n: 76 },
+    { v: 'sodium',  m: WD_EN[wd], s: WD_JP[wd], beats: 2, n: 81 },
+    { v: 'outline', m: `${pad2(d.getMonth() + 1)}.${pad2(d.getDate())}`, s: `${d.getMonth() + 1}月${d.getDate()}日 · ${MON_EN[d.getMonth()]}`, beats: 1, n: 79 },
+    { v: 'tail',    m: String(y), s: `令和${reiwa(y)}年`, beats: 1, n: 76 },
+    { v: 'signal',  m: hm, s: jpTime(d), beats: 2, n: 84 },
+    { v: 'ink',     m: z.short, s: z.utc, beats: 1, n: 72 },
+  ];
+  let t = t1;
+  seq.forEach(c => {
+    bell(t, c.n); zap(t);
+    at(t, () => {
+      card(c.v, c.m, c.s);
+      $('#hudBr').innerHTML = `${BPM} BPM<br>${hm}:${pad2(d.getSeconds())} ${z.short}`;
+    });
+    t += c.beats * SPB;
+  });
+  const t2 = t;
+  at(t2, () => {
+    card('outline', hm, 'をお知らせします');
+    master.gain.setTargetAtTime(0.45, ctx.currentTime, 0.15);
+    speak(`${d.getMonth() + 1}月${d.getDate()}日、${WD_JP[wd]}。${jpTime(d)}をお知らせします。`, () => {
+      master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.3);
+      setTimeout(() => {
+        closeShow();
+        busy = false;
+        if (!bgmOn) stopMusic();
+      }, 900);
+    });
+  });
+}
+
+function maybeAutoChime(now) {
+  if (!unlocked || !ctx || ctx.state !== 'running' || busy) return;
+  const m = now.getMinutes();
+  if ((autoMode === 'hour' && m === 0) || (autoMode === 'quarter' && m % 15 === 0)) announce();
+}
+
+/* ---------- controls ---------- */
+// mode: [label, next mode on tap]
+const AUTO = { hour: ['毎時', 'quarter'], quarter: ['15分毎', 'off'], off: ['OFF', 'hour'] };
+let autoMode = 'hour';
+try { const s = localStorage.getItem('metroChime.auto'); if (s && AUTO[s]) autoMode = s; } catch (e) {}
+function renderAuto() {
+  $('#auto small').textContent = AUTO[autoMode][0];
+  $('#auto').setAttribute('aria-pressed', String(autoMode !== 'off'));
+}
+renderAuto();
+
+$('#announce').addEventListener('click', announce);
+$('#bgm').addEventListener('click', () => {
+  unlock();
+  bgmOn = !bgmOn;
+  $('#bgm').setAttribute('aria-pressed', String(bgmOn));
+  $('#bgm small').textContent = bgmOn ? 'ON' : 'OFF';
+  if (bgmOn) startMusic(0);
+  else if (!busy) stopMusic();
+});
+$('#auto').addEventListener('click', () => {
+  unlock();
+  autoMode = AUTO[autoMode][1];
+  try { localStorage.setItem('metroChime.auto', autoMode); } catch (e) {}
+  renderAuto();
+});
+
+/* ---------- night city canvas ---------- */
+const cv = $('#city'), g = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1, layers = [], streaks = [], pulse = 0, level = 0, sky = null;
+const beatDots = [...document.querySelectorAll('#beat i')];
+
+function buildLayers() {
+  const defs = [
+    { depth: 0.3, speed: 3,  fill: '#141c31', hMin: 0.30, hMax: 0.58, win: 0.08 },
+    { depth: 0.6, speed: 8,  fill: '#0f1628', hMin: 0.18, hMax: 0.44, win: 0.13 },
+    { depth: 1.0, speed: 16, fill: '#070a13', hMin: 0.08, hMax: 0.28, win: 0.18 },
+  ];
+  layers = defs.map(L => {
+    const lw = Math.ceil(W * 1.3);
+    const c = document.createElement('canvas');
+    c.width = Math.ceil(lw * DPR); c.height = Math.ceil(H * DPR);
+    const x = c.getContext('2d'); x.scale(DPR, DPR);
+    let px = 0;
+    while (px < lw) {
+      const bw = 16 + Math.random() * 56 * L.depth + 12;
+      const bh = H * (L.hMin + Math.random() * (L.hMax - L.hMin));
+      const top = H - bh;
+      x.fillStyle = L.fill; x.fillRect(px, top, bw, bh);
+      if (Math.random() < 0.25) x.fillRect(px + bw / 2 - 1, top - 14 * L.depth - 6, 2, 14 * L.depth + 6);
+      if (Math.random() < 0.3) { x.fillStyle = '#ff4f6a'; x.fillRect(px + bw / 2 - 1.5, top - 14 * L.depth - 8, 3, 3); }
+      const ws = 2 + L.depth * 2, gap = ws + 3 + L.depth * 3;
+      for (let wy = top + 6; wy < H - 4; wy += gap) {
+        for (let wx = px + 4; wx < px + bw - ws - 2; wx += gap * 0.8) {
+          if (Math.random() < L.win) {
+            x.fillStyle = Math.random() < 0.75
+              ? `rgba(255,176,74,${0.2 + Math.random() * 0.5})`
+              : `rgba(95,227,255,${0.18 + Math.random() * 0.4})`;
+            x.fillRect(wx, wy, ws, ws * 1.3);
+          }
+        }
+      }
+      px += bw + Math.random() * 3;
+    }
+    return { ...L, c, lw, off: Math.random() * lw };
+  });
+  sky = g.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, '#090d18'); sky.addColorStop(0.55, '#111633'); sky.addColorStop(1, '#2a1c33');
+}
+
+const roads = [
+  { y: 0.80, slope: -0.06, dir: 1,  colors: ['#ffe2b0', '#ffb04a'] },
+  { y: 0.88, slope: -0.04, dir: -1, colors: ['#ff4f6a', '#ff7a5c'] },
+  { y: 0.95, slope: -0.02, dir: 1,  colors: ['#5fe3ff', '#ffb04a'] },
+];
+function spawnStreak(r, anywhere) {
+  return { r, x: anywhere ? Math.random() * W : (r.dir > 0 ? -100 : W + 100),
+    len: 60 + Math.random() * 180, sp: (reduced ? 40 : 220) + Math.random() * 260,
+    w: 1 + Math.random() * 1.8, col: r.colors[Math.random() < 0.7 ? 0 : 1] };
+}
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight;
+  cv.width = Math.ceil(W * DPR); cv.height = Math.ceil(H * DPR);
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  buildLayers();
+  streaks = [];
+  roads.forEach(r => { for (let i = 0; i < 9; i++) streaks.push(spawnStreak(r, true)); });
+}
+addEventListener('resize', resize);
+resize();
+
+let last = performance.now();
+function frame(nowMs) {
+  const dt = Math.min(0.05, (nowMs - last) / 1000); last = nowMs;
+  renderClock(new Date());
+
+  if (ctx && playing) {
+    const now = ctx.currentTime - (ctx.outputLatency || 0);
+    while (vis.length && vis[0].t <= now) {
+      const e = vis.shift();
+      if (e.k === 'kick') pulse = 1;
+      if (e.k === 'beat') beatDots.forEach((d, i) => d.classList.toggle('on', i === e.v));
+    }
+    analyser.getByteFrequencyData(fft);
+    let sum = 0; for (let i = 2; i < 40; i++) sum += fft[i];
+    level += ((sum / (38 * 255)) - level) * 0.2;
+  } else {
+    vis.length = 0; level *= 0.95;
+    beatDots.forEach(d => d.classList.remove('on'));
+  }
+  pulse *= Math.pow(0.02, dt);
+
+  g.globalCompositeOperation = 'source-over';
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  // light pollution haze that breathes with the kick
+  const haze = g.createRadialGradient(W / 2, H, 0, W / 2, H, H * 0.75);
+  haze.addColorStop(0, `rgba(255,176,74,${0.16 + pulse * 0.14 + level * 0.2})`);
+  haze.addColorStop(1, 'rgba(255,176,74,0)');
+  g.fillStyle = haze; g.fillRect(0, 0, W, H);
+
+  layers.forEach((L, i) => {
+    if (!reduced) L.off = (L.off + L.speed * dt * (1 + level * 2)) % L.lw;
+    const ox = -L.off;
+    g.globalAlpha = 1;
+    g.drawImage(L.c, ox, 0, L.lw, H);
+    g.drawImage(L.c, ox + L.lw, 0, L.lw, H);
+    if (i === 2) {
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = pulse * 0.5;
+      g.drawImage(L.c, ox, 0, L.lw, H);
+      g.drawImage(L.c, ox + L.lw, 0, L.lw, H);
+      g.globalCompositeOperation = 'source-over';
+      g.globalAlpha = 1;
+    }
+  });
+
+  // long-exposure traffic trails
+  g.globalCompositeOperation = 'lighter';
+  g.lineCap = 'round';
+  streaks.forEach((s, i) => {
+    const r = s.r;
+    s.x += s.sp * r.dir * dt * (1 + level * 1.5);
+    if ((r.dir > 0 && s.x - s.len > W + 20) || (r.dir < 0 && s.x + s.len < -20)) { streaks[i] = spawnStreak(r, false); return; }
+    const yAt = x => H * r.y + (x - W / 2) * r.slope;
+    const x2 = s.x - s.len * r.dir;
+    const grad = g.createLinearGradient(s.x, 0, x2, 0);
+    grad.addColorStop(0, s.col); grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.strokeStyle = grad; g.lineWidth = s.w;
+    g.beginPath(); g.moveTo(s.x, yAt(s.x)); g.lineTo(x2, yAt(x2)); g.stroke();
+  });
+  g.globalCompositeOperation = 'source-over';
+
+  // dim the upper area so the clock stays readable
+  const veil = g.createLinearGradient(0, 0, 0, H);
+  veil.addColorStop(0, 'rgba(9,13,24,.55)'); veil.addColorStop(0.6, 'rgba(9,13,24,.25)'); veil.addColorStop(1, 'rgba(9,13,24,0)');
+  g.fillStyle = veil; g.fillRect(0, 0, W, H);
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window.self) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+})();
+</script>
+</body>
+</html>

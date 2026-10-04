@@ -116,3 +116,17 @@ UDP、ポート 4950、1 パケット 40 バイト (little endian)。定義は `
 cd receiver
 python -m unittest discover -s tests
 ```
+
+---
+
+# Metro Chime (iPhone 時報アプリ)
+
+`metro-chime/` は、日付・曜日・時刻を夜の街のモーショングラフィックとエレクトロニカで知らせる iPhone 向け Web アプリです。
+音楽は Web Audio API でその場で合成しているので、音声ファイルはありません (122 BPM、Am9–Fmaj9–Cmaj7–Em7)。
+
+- **時報を再生**: 4 拍のカウントのあと、曜日・日付・年・時刻をビートに合わせて表示し、最後に日本語で読み上げ
+- **BGM**: 音楽を流しっぱなしにする (再生中は画面スリープを抑止)
+- **自動時報**: 毎時 / 15分毎 / OFF。アプリを開いていて、一度タップして音を有効にした後に動作
+
+iPhone で使うには、HTTPS で公開したページ (GitHub Pages など) を Safari で開き、共有 → **ホーム画面に追加** でアプリとして起動できます。
+ローカルで試す場合は `npx serve metro-chime` で起動してください。

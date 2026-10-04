@@ -1,0 +1,16 @@
+{
+  "name": "Metro Chime",
+  "short_name": "Metro Chime",
+  "description": "日付・曜日・時刻を都会的なモーショングラフィックとエレクトロニカで知らせる時報アプリ",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090d18",
+  "theme_color": "#090d18",
+  "icons": [
+    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
