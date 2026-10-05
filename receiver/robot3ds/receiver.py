@@ -157,7 +157,8 @@ def main(argv: list[str] | None = None) -> None:
             was_connected = False
             return
         was_connected = True
-        print(f"\rseq={state.seq:<8} L={cmd.left:+.2f} R={cmd.right:+.2f} "
+        touch = f"{state.touch_x:3d},{state.touch_y:3d}" if state.touching else "  -    "
+        print(f"\rseq={state.seq:<8} L={cmd.left:+.2f} R={cmd.right:+.2f} touch={touch} "
               f"buttons={','.join(state.pressed_names()) or '-':<24}", end="", flush=True)
 
     try:
