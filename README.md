@@ -69,6 +69,27 @@ python -m robot3ds.fake_sender 127.0.0.1
    python -m robot3ds --serial /dev/ttyUSB0
    ```
 
+### Raspberry Pi で LED を光らせる
+
+```
+GPIO17 (11番ピン) ── 330Ω ── LED1(長い足→短い足) ── GND (9番ピン)
+GPIO27 (13番ピン) ── 330Ω ── LED2(長い足→短い足) ── GND (14番ピン)
+```
+
+```sh
+cd receiver
+python3 -m robot3ds.led
+```
+
+| 3DS の操作 | LED |
+|---|---|
+| A を押している間 | LED1 点灯 |
+| 下画面を触る (左→右) | LED2 の明るさ 0% → 100% |
+| スライドパッドを上に倒す | LED2 の明るさ (倒すほど明るい) |
+| 通信が 0.5 秒途切れる | 両方消灯 |
+
+ピンは `--led-pin` / `--pwm-pin` で変更できます。
+
 ### 自分のプログラムから使う
 
 ```python

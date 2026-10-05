@@ -3,6 +3,7 @@ import time
 import unittest
 
 from robot3ds.drive import DriveConfig, to_drive_command
+from robot3ds.led import OFF, to_led_output
 from robot3ds.protocol import FLAG_STOP, PACKET_SIZE, Button, PacketError, build, parse, seq_newer
 from robot3ds.receiver import ControllerReceiver
 
@@ -125,6 +126,27 @@ class ReceiverTest(unittest.TestCase):
         self.send(seq=0)
         time.sleep(0.02)
         self.assertEqual(self.rx.poll().seq, 0)
+
+
+class LedTest(unittest.TestCase):
+    def out(self, **kw):
+        return to_led_output(parse(build(**kw)))
+
+    def test_a_button_lights_led1(self):
+        self.assertTrue(self.out(buttons=Button.A).on)
+        self.assertFalse(self.out().on)
+
+    def test_touch_sets_brightness(self):
+        self.assertAlmostEqual(self.out(touch=(0, 100)).brightness, 0.0)
+        self.assertAlmostEqual(self.out(touch=(319, 100)).brightness, 1.0)
+
+    def test_circle_up_sets_brightness_down_is_off(self):
+        self.assertAlmostEqual(self.out(circle=(0, 156)).brightness, 1.0)
+        self.assertAlmostEqual(self.out(circle=(0, -156)).brightness, 0.0)
+
+    def test_off_when_disconnected_or_stopped(self):
+        self.assertEqual(to_led_output(None), OFF)
+        self.assertEqual(self.out(buttons=Button.A, touch=(300, 0), flags=FLAG_STOP), OFF)
 
 
 if __name__ == "__main__":
