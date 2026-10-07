@@ -554,7 +554,7 @@ static void setOrient(int o, bool animate) {
 }
 
 // Gravity reads about 512 per g. Held normally it falls on the y/z axes; turned like a book it falls on x,
-// and the sign of x tells which way the console was turned.
+// and the sign of x tells which way the console was turned: positive x = top screen on the left.
 static void orientUpdate(float dt) {
 	static float ax, ay, az = 512, holdT;
 	static int cand = OR_LAND;
@@ -564,7 +564,7 @@ static void orientUpdate(float dt) {
 	if (orientMode == 0) {
 		float mag = sqrtf(ax * ax + ay * ay + az * az);
 		if (mag > 200) {
-			if (fabsf(ax) > 0.72f * mag) want = ax > 0 ? OR_CW : OR_CCW;
+			if (fabsf(ax) > 0.72f * mag) want = ax > 0 ? OR_CCW : OR_CW;   // sign checked on real hardware (emulators report it the other way)
 			else if (fabsf(ax) < 0.45f * mag) want = OR_LAND;
 		}
 	} else want = orientMode == 1 ? OR_LAND : orientMode == 2 ? OR_CCW : OR_CW;
