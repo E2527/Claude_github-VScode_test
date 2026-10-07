@@ -5,6 +5,7 @@ void scenes_init(void);
 void scenes_update(float dt, float pulse, float level);   // once per frame
 void scenes_draw(void);                                   // once per eye
 void scenes_next(void);
+void scenes_resize(void);
 int scenes_index(void);
 int scenes_count(void);
 const char *scenes_name(void);

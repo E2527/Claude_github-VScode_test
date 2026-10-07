@@ -23,6 +23,15 @@
 typedef enum { F_SYS, F_DISPLAY, F_MONO, F_CLOCK } FontId;
 enum { AL_LEFT, AL_CENTER, AL_RIGHT };
 
+// Orientation. Held sideways like a book, each screen is drawn rotated so it reads as a portrait screen.
+enum { OR_LAND, OR_CW, OR_CCW };   // CW: turned clockwise (top screen on the right); CCW: top screen on the left
+extern int g_orient;
+extern float g_w, g_h;     // logical size of the top screen in the current orientation
+extern float g_bw, g_bh;   // logical size of the bottom screen
+void gfx_set_orient(int o);
+void gfx_view(bool topScreen);                                   // call right after C2D_SceneBegin
+void gfx_touch(int tx, int ty, float *u, float *v);              // physical touch -> logical coordinates
+
 // pixels of horizontal offset per unit of depth for the eye being drawn (0 when 3D is off)
 extern float g_eye;
 static inline float DX(float depth) { return g_eye * depth; }
@@ -47,7 +56,7 @@ void glow(float x, float y, float r, u32 hex, float a);   // soft additive light
 void quad(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, u32 c);
 
 void blend_add(bool on);
-void clip_top(float x0, float y0, float x1, float y1);    // scissor in top-screen coordinates
+void clip_top(float x0, float y0, float x1, float y1);    // scissor in logical top-screen coordinates
 void clip_off(void);
 
 float text_w(FontId f, const char *s, float size);

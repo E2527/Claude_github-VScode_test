@@ -3,6 +3,28 @@
 #include "gfx.h"
 
 float g_eye = 0;
+int g_orient = OR_LAND;
+float g_w = TOP_W, g_h = TOP_H, g_bw = BOT_W, g_bh = BOT_H;
+
+void gfx_set_orient(int o) {
+	g_orient = o;
+	bool p = o != OR_LAND;
+	g_w = p ? TOP_H : TOP_W; g_h = p ? TOP_W : TOP_H;
+	g_bw = p ? BOT_H : BOT_W; g_bh = p ? BOT_W : BOT_H;
+}
+
+// Logical (u right, v down) -> physical: CW maps to (v, 240 - u), CCW to (width - v, u).
+void gfx_view(bool topScreen) {
+	C2D_ViewReset();
+	if (g_orient == OR_CW) { C2D_ViewTranslate(0, TOP_H); C2D_ViewRotate(-M_PI / 2); }
+	else if (g_orient == OR_CCW) { C2D_ViewTranslate(topScreen ? TOP_W : BOT_W, 0); C2D_ViewRotate(M_PI / 2); }
+}
+
+void gfx_touch(int tx, int ty, float *u, float *v) {
+	if (g_orient == OR_CW) { *u = BOT_H - ty; *v = tx; }
+	else if (g_orient == OR_CCW) { *u = ty; *v = BOT_W - tx; }
+	else { *u = tx; *v = ty; }
+}
 
 static C2D_TextBuf tbuf;
 static C2D_Font fonts[4];   // F_SYS stays NULL (system font)
@@ -57,6 +79,12 @@ void blend_add(bool on) {
 // The top framebuffer is stored rotated (240 wide, 400 tall), so screen x/y swap and flip.
 void clip_top(float x0, float y0, float x1, float y1) {
 	C2D_Flush();
+	if (g_orient != OR_LAND) {   // turn the logical rectangle back into physical screen coordinates
+		float px0, px1, py0, py1;
+		if (g_orient == OR_CW) { px0 = y0; px1 = y1; py0 = TOP_H - x1; py1 = TOP_H - x0; }
+		else { px0 = TOP_W - y1; px1 = TOP_W - y0; py0 = x0; py1 = x1; }
+		x0 = px0; x1 = px1; y0 = py0; y1 = py1;
+	}
 	int l = (int)clampf(TOP_H - y1, 0, TOP_H), t = (int)clampf(TOP_W - x1, 0, TOP_W);
 	int r = (int)clampf(TOP_H - y0, 0, TOP_H), b = (int)clampf(TOP_W - x0, 0, TOP_W);
 	if (r <= l) r = l + 1;

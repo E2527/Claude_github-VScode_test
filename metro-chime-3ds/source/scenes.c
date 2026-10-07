@@ -10,8 +10,8 @@
 #include "gfx.h"
 #include "scenes.h"
 
-#define W TOP_W
-#define H TOP_H
+#define W g_w
+#define H g_h
 
 static float T, pulse, level;
 static float frand(float a, float b) { return a + (b - a) * (rand() / (float)RAND_MAX); }
@@ -273,7 +273,7 @@ static void mlineMake(MLine *L, u32 c, char letter, int i) {
 }
 
 static void metroInit(void) {
-	mcell = fmaxf(20, H / 9.f);
+	mcell = fmaxf(20, fminf(W, H) / 9.f);
 	mborn = T;
 	const u32 C[NLINE] = {SIGNAL, SODIUM, TAIL, GREEN, VIOLET};
 	const char *letters = "SGTNV";
@@ -499,7 +499,7 @@ static void transDraw(float k) {
 			text(F_SYS, "出口・地上へ", bx + 9 + DX(-1), by + 24, 11, col(INK, sa), AL_LEFT);
 		}
 		if (k > 0.4f) {
-			float R = lerpf(mcell * 0.15f * sqrtf(z), 270, powf(span(k, 0.4f, 1), 1.6f)), rh = R * 0.62f;
+			float R = lerpf(mcell * 0.15f * sqrtf(z), W * 0.75f, powf(span(k, 0.4f, 1), 1.6f)), rh = R * H / W;
 			clip_top(cx - R, cy - rh, cx + R, cy + rh);
 			skylineDraw();
 			clip_off();
@@ -516,6 +516,11 @@ static void transDraw(float k) {
 void scenes_init(void) {
 	skylineInit(); rainInit(); metroInit();
 	T = 0;
+}
+
+void scenes_resize(void) {   // the screen changed orientation: rebuild everything for the new size
+	skylineInit(); rainInit(); metroInit();
+	from = -1;
 }
 
 void scenes_next(void) {
