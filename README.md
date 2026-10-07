@@ -147,3 +147,28 @@ python -m unittest discover -s tests
 
 更新したときは、ネットにつながった状態で 1 回起動すると裏で新しい版を取り込み、次の起動から反映されます。
 ローカルの PC で試す場合は `npx http-server metro-chime` で起動し、`http://localhost:8080/` を開いてください。
+
+## Metro Chime 3DS 版
+
+`metro-chime-3ds/` はニンテンドー 3DS 用の homebrew 版です (C / libctru / citro2d)。Web 版と同じ曲・同じ 4 つの背景シーンとつながりのある切り替え演出を、3DS の中だけで動かします。
+
+- **上画面**: 背景シーン・時計・時報カード・起動アニメ。**3D スライダーを上げると街並みやトンネルに奥行きが出て、時計が手前に浮きます**
+- **下画面**: 週・日数・令和・経過% と、タッチで押せるボタン
+- **起動**: 起動アニメのあと、そのまま時報が始まる (3DS は最初から音を出せるのでタップ不要)。B で音なしの時計だけ表示
+- **時報の締め**: 3DS には読み上げ音声がないので、最後は「ピッ・ピッ・ピッ・ポーン」の時報音で知らせる
+- 時刻は 3DS 本体の時計を使います
+
+| ボタン | 動作 |
+|---|---|
+| A / タッチ「時報を再生」 | 時報 (カウントダウン付き) |
+| X | BGM の ON/OFF |
+| Y | 自動時報 (毎時 / 15 分毎 / OFF) |
+| R / L | 背景シーンを次へ |
+| START | 終了 |
+
+### ビルドとインストール
+
+1. ビルド: `./metro-chime-3ds/build.sh` (devkitPro がなければ Docker で自動取得)。GitHub Actions の Artifacts `metro-chime-3dsx` からもダウンロードできます
+2. `metro-chime-3ds/metro-chime.3dsx` を SD カードの `/3ds/` にコピーし、Homebrew Launcher から起動
+3. 音を出すには SD カードに `/3ds/dspfirm.cdc` が必要です (Luma3DS 環境で homebrew の **DSP1** を一度実行すると作られます)。ない場合は音なしで動きます
+

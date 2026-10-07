@@ -18,6 +18,19 @@ jobs:
           name: robot-controller-3dsx
           path: 3ds/robot-controller.3dsx
 
+  build-metro-chime-3ds:
+    runs-on: ubuntu-latest
+    # 3ds/build.sh と同じ devkitPro イメージ
+    container: devkitpro/devkitarm@sha256:116afba8df8453961de2936ffab20dd441edf4d682856c1ec8b0e53d7ed0bbf5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Metro Chime for 3DS
+        run: make -C metro-chime-3ds
+      - uses: actions/upload-artifact@v4
+        with:
+          name: metro-chime-3dsx
+          path: metro-chime-3ds/metro-chime.3dsx
+
   test-receiver:
     runs-on: ubuntu-latest
     steps:
